@@ -24,9 +24,7 @@
 #define ASSERT_PROFILE(p)                                   \
     do {                                                    \
         assert(p.flags > 0 && p.flags < MAX_FLAGS_VALUE);   \
-        uint8_t prob = p.rread_prob + p.rwrite_prob;        \
-        prob += p.sread_prob + p.swrite_prob;               \
-        if (prob != 100) {                                  \
+        if (p.swrite_prob != 100) {                         \
             assert(1 == 0);                                 \
         }                                                   \
         /* TODO: Add assert for sizes */                    \
@@ -71,6 +69,20 @@ struct work_profile {
      * Legend:
      * --> r: random
      * --> s: sequential
+     * 
+     * The basic principle behind the organisation of the probabilities
+     * is that they are cumulative. After a random number is generated,
+     * it is checked on which probability bucket it exists, and then that
+     * wokload is generated.
+     * 
+     * Eg: rread_prob == 10, rwrite_prob == 25, sread_prob == 50, swrite_prob == 15
+     * This distribution would give the following values:
+     *  rread_prob:  [1, 10]
+     *  rwrite_prob: [11, 35]
+     *  sread_prob:  [36, 85]
+     *  swrite_prob: [86, 100]
+     * If a generated random number was 54, a sequential read workload
+     * shall be generated.
      */
     uint64_t rread_sz, rwrite_sz;
     uint64_t sread_sz, swrite_sz;

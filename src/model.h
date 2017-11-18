@@ -11,6 +11,7 @@
 #include "cirq/cirq.h"
 #include "work_profile.h"
 #include <stdint.h>
+#include <pthread.h>
 
 #ifndef _MODEL_H_
 #define _MODEL_H_
@@ -71,9 +72,21 @@ struct thread_args_producer {
      */
 
     double rate;
-    double timer;
+    long int drive_size;
     struct work_profile *profile;
     cirq *workload;
+};
+
+struct thread_args_timer {
+    /*
+     * The timer thread is used to time a certain benchmark
+     * session. It conveniently kills the producer and the
+     * consumer thread.
+     */
+
+    pthread_t *producer;
+    pthread_t *consumer;
+    long int timer;
 };
 
 #endif
