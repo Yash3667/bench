@@ -10,6 +10,7 @@
  */
 #include "cirq/cirq.h"
 #include "work_profile.h"
+#include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
 
@@ -22,8 +23,7 @@
 // Task Identifier
 enum iotask {
     IO_READ,
-    IO_WRITE,
-    IO_STOP
+    IO_WRITE
 };
 
 //
@@ -88,5 +88,62 @@ struct thread_args_timer {
     pthread_t *consumer;
     long int timer;
 };
+
+/**
+ * This function is used to generate a workload based on a 
+ * workload profile. It uses stubs to generate the actual
+ * workload. It is the callers responsibility to free this
+ * workload.
+ * 
+ * @param profile       The profile to generate a workload on.
+ * @param drive_size    The size of the drive.
+ * 
+ * @return A valid workitem
+ * @return NULL         Malloc error
+ */
+static struct work_item*
+_generate_work_item(struct work_profile *profile, long int drive_size)
+{
+    static uint64_t sequence = 0;
+    struct work_item *item;
+    long int task;
+
+    item = malloc(sizeof *item);
+    if (!item) {
+        return NULL;
+    }
+
+    item->sequence = sequence++;
+    item->offset = rand() % drive_size;
+    task = (rand() % 100) + 1;
+
+    /*
+     * Assign a workload based on the cumulative probability
+     * distribution of the workloads. In case the offset we get
+     * is such that size of io > drive_size - offset, then we
+     * trim the IO size until the end of the drive. This is the
+     * simulation of most industry class workloads.
+     */
+
+    if (task <= profile->rread_prob) {
+        item->task = IO_READ;
+        item->length = profile->rread_sz;
+    } else if (task <= profile->rwrite_prob) {
+        item->task = IO_WRITE;
+        item->length = profile->rwrite_sz;
+    } else if (task <= profile->sread_prob) {
+        item->task = IO_READ;
+        item->length = profile->sread_sz;
+    } else if (task <= profile->swrite_prob) {
+        item->task = IO_WRITE;
+        item->length = profile->swrite_sz;
+    }
+
+    if ((drive_size - item->offset) < item->length) {
+        item->length = drive_size - item->offset;
+    }
+
+    return item;
+}
 
 #endif

@@ -20,19 +20,15 @@
 #include <assert.h>
 #include <signal.h>
 #include <pthread.h>
+#include <time.h>
+#include <fcntl.h>
 #include <sys/vfs.h>
 
-//
-// Macros
-//
 // Workload Queue Count
 #define QWL_MAX     64
 
-//
-// Enumerations
-//
-// Args
-enum {
+// Argument Enumeration
+enum bench_args_enum {
     NAME = 0,
 
     // Workload Probabilities.
@@ -54,38 +50,90 @@ enum {
     ARG_COUNT
 };
 
-//
-// Structures
-//
-// All required args
+// Structure encompassing all required arguments
 struct bench_args {
-    uint8_t  prob[4];
-    uint64_t sz[4];
-    double   timer;
-    double   lambda;
-    char *   path;
+    uint8_t     prob[4];
+    uint64_t    sz[4];
+    long int    timer;
+    double      lambda;
+    char *      path;
 };
 
+/**
+ * The consumer work function is a brain dead work function
+ * which performs the actual I/O to the disk drive. It acquires
+ * a workload item from a circular queue and executes that
+ * workload on a specified drive, collecting statistics.
+ * 
+ * @param   args    Consumer specific arguments.
+ * @return  NULL
+ */
 void*
 cwork(void *args)
 {
     struct thread_args_consumer *cargs = args;
+    struct work_item *item;
+    uint64_t ret;
+    int fd;
+    void *buf;
 
-    while (1);
+    fd = open(cargs->drive_path, O_RDWR);
+    assert(fd != -1);
+
+    while (1) {
+        item = cirq_get(cargs->workload);
+        printf("Got Item\n");
+
+        buf = malloc(item->length);
+        assert(buf != NULL);
+
+        if (item->task == IO_READ) {
+            ret = pread(fd, buf, item->length, item->offset);
+        } else {
+            ret = pwrite(fd, buf, item->length, item->offset);
+        }
+        assert(ret == item->length);
+    }
 
     return NULL;
 }
 
+/**
+ * The producer work function is used to generate workloads for
+ * a circular queue depending on a user defined work profile. It
+ * generates a workload based on an exponential distribution to emulate
+ * a periodic work interval.
+ * 
+ * @param   args    Producer specific arguments.
+ * @return  NULL
+ */
 void*
 pwork(void *args)
 {
     struct thread_args_producer *pargs = args;
+    struct work_item *item;
+    double sleep_time;
 
-    while (1);
+    while (1) {
+        sleep_time = get_exponential_variate(pargs->rate) * 1000000;
+        printf("sleep_time: %.2lf\n", sleep_time);
+        usleep(sleep_time);
+
+        item = _generate_work_item(pargs->profile, pargs->drive_size);
+        cirq_put(pargs->workload, item);
+    }
 
     return NULL;
 }
 
+/**
+ * The timer work function is another brain dead function whose
+ * sole job is to sleep for a set amount of time and then kill the
+ * producer and consumer threads.
+ * 
+ * @param   args    Timer specific arguments.
+ * @return  NULL
+ */
 void*
 twork(void *args)
 {
@@ -98,6 +146,10 @@ twork(void *args)
     return NULL;
 }
 
+/**
+ * Incredibly crappy function to parse arguments without any
+ * sort of error checking.
+ */
 int 
 parse_args(int argc, char *argv[], struct bench_args *args)
 {
@@ -118,13 +170,18 @@ parse_args(int argc, char *argv[], struct bench_args *args)
     args->sz[3] = atoi(argv[SWRITE_SZ]);
 
     // Get Miscellaneous
-    args->timer = atof(argv[TIMER]);
+    args->timer = atol(argv[TIMER]);
     args->lambda = atof(argv[LAMBDA]);
     args->path = argv[PATH];
 
     return 0;
 }
 
+/**
+ * Main function is used to setup the threads and execute them.
+ * From there on, it basically waits until the timer returns, after
+ * which it frees up the used memory and exits.
+ */
 int 
 main(int argc, char *argv[])
 {
@@ -142,10 +199,13 @@ main(int argc, char *argv[])
         printf("Not Enough Args!\n");
         return -1;
     }
+    srand(time(0));
 
-    // Build a work profile out of the arguments provided. For
-    // more information on how the probability distribution is layed
-    // out, refer to "work_profile.h"
+    /* Build a work profile out of the arguments provided. For
+     * more information on how the probability distribution is layed
+     * out, refer to "work_profile.h".
+     */
+
     bench_profile.flags = 0;
     if (args_data.prob[0] > 0) {
         SET_PROFILE_FLAG(bench_profile, RREAD);
@@ -174,22 +234,26 @@ main(int argc, char *argv[])
     qwl = cirq_create(QWL_MAX, CIRQ_LOCKING_AND_BLOCKING);
     assert(qwl != NULL);
 
-    // Acquire size of the disk drive
+    /* Create and deploy all the required threads, including filling up
+     * their required parameters. The timer thread controls the execution
+     * of the producer and consumer thread, so main simply waits on the
+     * timer thread.
+     * 
+     * Also acquire the size of the disk drive.
+     */
     statfs(args_data.path, &fsb);
-
-    // Prepare the arguments for both producer and consumer.
-    // The producer needs a pointer to the consumers thread,
-    // hence, the consumer starts first.
-    cargs.drive_path = args_data.path;
-    cargs.workload = qwl;
     pargs.rate = 1 / args_data.lambda;
     pargs.workload = qwl;
     pargs.profile = &bench_profile;
     pargs.drive_size = fsb.f_blocks * fsb.f_bsize;
 
+    cargs.drive_path = args_data.path;
+    cargs.workload = qwl;
+
     targs.producer = &producer;
     targs.consumer = &consumer;
     targs.timer = args_data.timer;
+    
     ret = pthread_create(&timer, NULL, twork, &targs);
     assert(ret == 0);
 
@@ -200,5 +264,7 @@ main(int argc, char *argv[])
     assert(ret == 0);
 
     pthread_join(timer, NULL);
+    cirq_free(qwl);
+
     return 0;
 }
