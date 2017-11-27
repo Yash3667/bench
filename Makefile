@@ -6,7 +6,7 @@ EXEC = $(BUILD_DIR)/bench
 DEP = $(BUILD_DIR)/main.o $(BUILD_DIR)/cirq.o $(BUILD_DIR)/expdistrib.o
 
 all: $(DEP)
-	$(CC) -o $(EXEC) $(DEP) -lm -pthread
+	$(CC) -o $(EXEC) $(DEP) -lm -lpthread
 
 $(BUILD_DIR)/main.o: $(SRC_DIR)/main.c
 	$(CC) $(FLAGS) -g -o $(BUILD_DIR)/main.o -c $(SRC_DIR)/main.c

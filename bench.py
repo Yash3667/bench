@@ -33,7 +33,6 @@ with open(args[1], "r") as f:
     content = f.read()
 
 content = content.split("\n")
-print content
 for item in content:
     info = item.split("=")
     

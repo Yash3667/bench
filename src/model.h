@@ -22,8 +22,19 @@
 //
 // Task Identifier
 enum iotask {
-    IO_READ,
-    IO_WRITE
+    IO_RREAD = 0,
+    IO_RWRITE,
+    IO_SREAD,
+    IO_SWRITE
+};
+
+// Index for statistical collection
+enum stat_index {
+    STAT_RREAD = 0,
+    STAT_RWRITE,
+    STAT_SREAD,
+    STAT_SWRITE,
+    STAT_TOTAL
 };
 
 //
@@ -45,6 +56,12 @@ struct work_item {
     enum iotask task;
 };
 
+// Statistical Collection
+struct statistical_collection {
+    uint64_t total_time_consumed;
+    uint64_t total_operations;
+};
+
 // Thread arguments
 struct thread_args_consumer {
     /*
@@ -53,12 +70,11 @@ struct thread_args_consumer {
      * dequeue an item and execute the task. All it requires
      * is the file descriptor and a link to the shared queue along
      * with all drive statistics.
-     * 
-     * TODO: Need statistics.
      */
 
     int  fd;
     cirq *workload;
+    struct statistical_collection statistics[STAT_TOTAL];
 };
 
 struct thread_args_producer {
@@ -126,16 +142,16 @@ _generate_work_item(struct work_profile *profile, long int drive_size)
      */
 
     if (task <= profile->rread_prob) {
-        item->task = IO_READ;
+        item->task = IO_RREAD;
         item->length = profile->rread_sz;
     } else if (task <= profile->rwrite_prob) {
-        item->task = IO_WRITE;
+        item->task = IO_RWRITE;
         item->length = profile->rwrite_sz;
     } else if (task <= profile->sread_prob) {
-        item->task = IO_READ;
+        item->task = IO_SREAD;
         item->length = profile->sread_sz;
     } else if (task <= profile->swrite_prob) {
-        item->task = IO_WRITE;
+        item->task = IO_SWRITE;
         item->length = profile->swrite_sz;
     }
 

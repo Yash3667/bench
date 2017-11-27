@@ -10,6 +10,7 @@
  */
 #include "expdistrib/expdistrib.h"
 #include "cirq/cirq.h"
+#include "nano_time.h"
 #include "work_profile.h"
 #include "model.h"
 #include <stdio.h>
@@ -22,15 +23,17 @@
 #include <signal.h>
 #include <pthread.h>
 #include <time.h>
-
-// Need to define GNU Source to have access to
-// O_DIRECT flag for open().
-#define __USE_GNU
 #include <fcntl.h>
 
+//
+// Macros
+//
 // Workload Queue Count
 #define QWL_MAX     64
 
+//
+// Enumerations
+//
 // Argument Enumeration
 enum bench_args_enum {
     NAME = 0,
@@ -54,7 +57,21 @@ enum bench_args_enum {
     ARG_COUNT
 };
 
-// Structure encompassing all required arguments
+//
+// Global Variables
+//
+// Exit variable for consumer thread.
+//  0: Nothing.
+//  1: Exit Loop Signal.
+//  2: Exit Loop Confirmed.
+//
+// TODO: Use an enumeration.
+volatile uint8_t global_cstate = 0;
+
+//
+// Structures
+//
+// All required arguments
 struct bench_args {
     uint8_t     prob[4];
     uint64_t    sz[4];
@@ -75,29 +92,68 @@ struct bench_args {
 void*
 cwork(void *args)
 {
+    const uint32_t transfer_size = 4096;
+
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
-    uint64_t ret;
+    struct timespec ttoken;
+    uint64_t ret, tstamp;
+    uint64_t i, loop_count, offset;
     void *buf;
 
+    for (i = 0; i < STAT_TOTAL; i++) {
+        cargs->statistics[i].total_time_consumed = 0;
+        cargs->statistics[i].total_operations = 0;
+    }
     lseek(cargs->fd, 0L, SEEK_SET);
-    while (1) {
+
+    /*
+     **********************************************************
+     * A global variable is used to signal this thread to
+     * exit its loop. This is because this thread needs to
+     * output its statistics to a file. 
+     * 
+     * There is no need for a mutex as it is guarenteed that
+     * until this thread exits the loop, the producer thread
+     * will keep functioning. Hence, even if it spends another
+     * iteration in the loop due to a race condition, it hurts
+     * no one and avoids the overhead of a mutex.
+     * 
+     * It also signals the timer thread that it is indeed out
+     * of the loop and so it is safe to cancel the producer
+     * thread 
+     **********************************************************
+     */
+
+    while (global_cstate == 0) {
         item = cirq_get(cargs->workload);
 
         printf("%lu. O: %lu | L: %lu | T: %d\n",
         item->sequence, item->offset, item->length, item->task);
 
-        buf = malloc(item->length);
+        posix_memalign(&buf, transfer_size, item->length);
         assert(buf != NULL);
 
-        if (item->task == IO_READ) {
-            ret = pread(cargs->fd, buf, item->length, item->offset);
-        } else {
-            ret = pwrite(cargs->fd, buf, item->length, item->offset);
+        loop_count = item->length / transfer_size;
+        offset = item->offset;
+
+        INIT_TIME(&ttoken);
+        for (i = 0; i < loop_count; i++) {
+            if (item->task == IO_RREAD || IO_SREAD) {
+                ret = pread(cargs->fd, buf, transfer_size, offset);
+            } else {
+                ret = pwrite(cargs->fd, buf, transfer_size, offset);
+            }
+
+            assert(ret == transfer_size);
+            offset += transfer_size;
         }
-        assert(ret == item->length);
+        tstamp = GET_TIME(ttoken);
+        printf("Time Taken: %.8lf seconds\n\n", (double)tstamp / 1000000000UL);
+
         free(item);
     }
+    global_cstate = 2;
 
     close(cargs->fd);
     return NULL;
@@ -144,9 +200,31 @@ twork(void *args)
     struct thread_args_timer *targs = args;
 
     sleep(targs->timer);
-    pthread_cancel(*targs->producer);
-    pthread_cancel(*targs->consumer);
 
+    /*
+     ************************************************************
+     * The timer thread cannot simply cancel the consumer
+     * thread as the consumer needs to output its statistics
+     * to a file. Hence, we use a global variable to signify to the
+     * consumer that it needs to stop and output its statistics
+     * to a file. As there is a single writer and single reader,
+     * we do not need to use a mutex. A simple wait in a loop is
+     * enough as we do not care that it waits in a loop one more
+     * time than needed in case of a race condition.
+     * 
+     * It is crucial that the consumer is confirmed to be out
+     * of its loop before the producer is cancelled as otherwise
+     * a system state might be reached such that there is no
+     * producer and the circular queue is empty and so the 
+     * consumer goes to sleep, expecting some thread to wake it
+     * up (hence never exiting its loop). By making sure the consumer 
+     * is stopped first, this state is avoided.
+     ************************************************************
+     */
+    global_cstate = 1;
+    while (global_cstate != 2);
+
+    pthread_cancel(*targs->producer);
     return NULL;
 }
 
