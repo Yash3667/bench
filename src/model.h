@@ -51,13 +51,13 @@ struct thread_args_consumer {
      * The architecture model we use means that we can
      * have a brain dead consumer whose job is to simply
      * dequeue an item and execute the task. All it requires
-     * is the drive path and a link to the shared queue along
+     * is the file descriptor and a link to the shared queue along
      * with all drive statistics.
      * 
      * TODO: Need statistics.
      */
 
-    char *drive_path;
+    int  fd;
     cirq *workload;
 };
 

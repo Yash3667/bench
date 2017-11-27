@@ -13,6 +13,7 @@
 #include "work_profile.h"
 #include "model.h"
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -21,8 +22,11 @@
 #include <signal.h>
 #include <pthread.h>
 #include <time.h>
+
+// Need to define GNU Source to have access to
+// O_DIRECT flag for open().
+#define __USE_GNU
 #include <fcntl.h>
-#include <sys/vfs.h>
 
 // Workload Queue Count
 #define QWL_MAX     64
@@ -74,27 +78,28 @@ cwork(void *args)
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
     uint64_t ret;
-    int fd;
     void *buf;
 
-    fd = open(cargs->drive_path, O_RDWR);
-    assert(fd != -1);
-
+    lseek(cargs->fd, 0L, SEEK_SET);
     while (1) {
         item = cirq_get(cargs->workload);
-        printf("Got Item\n");
+
+        printf("%lu. O: %lu | L: %lu | T: %d\n",
+        item->sequence, item->offset, item->length, item->task);
 
         buf = malloc(item->length);
         assert(buf != NULL);
 
         if (item->task == IO_READ) {
-            ret = pread(fd, buf, item->length, item->offset);
+            ret = pread(cargs->fd, buf, item->length, item->offset);
         } else {
-            ret = pwrite(fd, buf, item->length, item->offset);
+            ret = pwrite(cargs->fd, buf, item->length, item->offset);
         }
         assert(ret == item->length);
+        free(item);
     }
 
+    close(cargs->fd);
     return NULL;
 }
 
@@ -116,7 +121,6 @@ pwork(void *args)
 
     while (1) {
         sleep_time = get_exponential_variate(pargs->rate) * 1000000;
-        printf("sleep_time: %.2lf\n", sleep_time);
         usleep(sleep_time);
 
         item = _generate_work_item(pargs->profile, pargs->drive_size);
@@ -157,17 +161,17 @@ parse_args(int argc, char *argv[], struct bench_args *args)
         return -1;
     }
 
-    // Get Probabilities.
+    // Get Probabilities
     args->prob[0] = atoi(argv[RREAD_PROB]);
     args->prob[1] = atoi(argv[RWRITE_PROB]);
     args->prob[2] = atoi(argv[SREAD_PROB]);
     args->prob[3] = atoi(argv[SWRITE_PROB]);
 
     // Get Sizes
-    args->sz[0] = atoi(argv[RREAD_SZ]);
-    args->sz[1] = atoi(argv[RWRITE_SZ]);
-    args->sz[2] = atoi(argv[SREAD_SZ]);
-    args->sz[3] = atoi(argv[SWRITE_SZ]);
+    args->sz[0] = atoll(argv[RREAD_SZ]);
+    args->sz[1] = atoll(argv[RWRITE_SZ]);
+    args->sz[2] = atoll(argv[SREAD_SZ]);
+    args->sz[3] = atoll(argv[SWRITE_SZ]);
 
     // Get Miscellaneous
     args->timer = atol(argv[TIMER]);
@@ -192,8 +196,7 @@ main(int argc, char *argv[])
     struct thread_args_consumer cargs;
     struct thread_args_producer pargs;
     struct thread_args_timer targs;
-    struct statfs fsb;
-    int ret;
+    int ret, fd;
 
     if (parse_args(argc, argv, &args_data)) {
         printf("Not Enough Args!\n");
@@ -234,20 +237,23 @@ main(int argc, char *argv[])
     qwl = cirq_create(QWL_MAX, CIRQ_LOCKING_AND_BLOCKING);
     assert(qwl != NULL);
 
-    /* Create and deploy all the required threads, including filling up
+    /* 
+     * Create and deploy all the required threads, including filling up
      * their required parameters. The timer thread controls the execution
      * of the producer and consumer thread, so main simply waits on the
      * timer thread.
      * 
      * Also acquire the size of the disk drive.
      */
-    statfs(args_data.path, &fsb);
+    fd = open(args_data.path, O_RDWR | O_SYNC);
+    assert(fd != -1);
+
     pargs.rate = 1 / args_data.lambda;
     pargs.workload = qwl;
     pargs.profile = &bench_profile;
-    pargs.drive_size = fsb.f_blocks * fsb.f_bsize;
+    pargs.drive_size = lseek(fd, 0L, SEEK_END);
 
-    cargs.drive_path = args_data.path;
+    cargs.fd = fd;
     cargs.workload = qwl;
 
     targs.producer = &producer;
