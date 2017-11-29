@@ -118,9 +118,12 @@ struct thread_args_timer {
  * @return NULL         Malloc error
  */
 static struct work_item*
-_generate_work_item(struct work_profile *profile, long int drive_size)
+_generate_work_item(struct work_profile *profile, uint64_t drive_size)
 {
     static uint64_t sequence = 0;
+    static uint64_t sread_offset = 0;
+    static uint64_t swrite_offset = 0;
+
     struct work_item *item;
     long int task;
 
@@ -130,7 +133,6 @@ _generate_work_item(struct work_profile *profile, long int drive_size)
     }
 
     item->sequence = sequence++;
-    item->offset = rand() % drive_size;
     task = (rand() % 100) + 1;
 
     /*
@@ -144,15 +146,21 @@ _generate_work_item(struct work_profile *profile, long int drive_size)
     if (task <= profile->rread_prob) {
         item->task = IO_RREAD;
         item->length = profile->rread_sz;
+        item->offset = rand() % drive_size;
     } else if (task <= profile->rwrite_prob) {
         item->task = IO_RWRITE;
         item->length = profile->rwrite_sz;
+        item->offset = rand() % drive_size;
     } else if (task <= profile->sread_prob) {
         item->task = IO_SREAD;
         item->length = profile->sread_sz;
+        item->offset = sread_offset;
+        sread_offset = (sread_offset + item->length >= drive_size)? 0: sread_offset + item->length;
     } else if (task <= profile->swrite_prob) {
         item->task = IO_SWRITE;
         item->length = profile->swrite_sz;
+        item->offset = swrite_offset;
+        swrite_offset = (swrite_offset + item->length >= drive_size)? 0: swrite_offset + item->length;
     }
 
     if ((drive_size - item->offset) < item->length) {

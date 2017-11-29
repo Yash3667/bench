@@ -16,4 +16,4 @@ $(BUILD_DIR)/expdistrib.o: $(SRC_DIR)/expdistrib/expdistrib.c
 	$(CC) $(FLAGS) -g -o $(BUILD_DIR)/expdistrib.o -c $(SRC_DIR)/expdistrib/expdistrib.c
 
 clean:
-	rm -f $(BUILD_DIR)/*
+	rm -f $(EXEC) $(DEP)

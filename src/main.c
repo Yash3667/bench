@@ -92,13 +92,11 @@ struct bench_args {
 void*
 cwork(void *args)
 {
-    const uint32_t transfer_size = 4096;
-
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
     struct timespec ttoken;
     uint64_t ret, tstamp;
-    uint64_t i, loop_count, offset;
+    uint64_t i;
     void *buf;
 
     for (i = 0; i < STAT_TOTAL; i++) {
@@ -131,27 +129,23 @@ cwork(void *args)
         printf("%lu. O: %lu | L: %lu | T: %d\n",
         item->sequence, item->offset, item->length, item->task);
 
-        posix_memalign(&buf, transfer_size, item->length);
+        buf = malloc(item->length);
         assert(buf != NULL);
-
-        loop_count = item->length / transfer_size;
-        offset = item->offset;
+        memset(buf, 49, item->length);
 
         INIT_TIME(&ttoken);
-        for (i = 0; i < loop_count; i++) {
-            if (item->task == IO_RREAD || IO_SREAD) {
-                ret = pread(cargs->fd, buf, transfer_size, offset);
-            } else {
-                ret = pwrite(cargs->fd, buf, transfer_size, offset);
-            }
-
-            assert(ret == transfer_size);
-            offset += transfer_size;
+        if (item->task == IO_RREAD || item->task == IO_SREAD) {
+            ret = pread(cargs->fd, buf, item->length, item->offset);
+        } else {
+            ret = pwrite(cargs->fd, buf, item->length, item->offset);
+            fsync(cargs->fd);
         }
+        assert(ret == item->length);
         tstamp = GET_TIME(ttoken);
+    
         printf("Time Taken: %.8lf seconds\n\n", (double)tstamp / 1000000000UL);
-
         free(item);
+        free(buf);
     }
     global_cstate = 2;
 
