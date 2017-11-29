@@ -83,8 +83,6 @@ struct thread_args_producer {
      * in this architecture model. The producer is aware
      * of the workload semantics and accordingly needs to know
      * the distribution of the workload.
-     * 
-     * TODO: Need statistics.
      */
 
     double rate;

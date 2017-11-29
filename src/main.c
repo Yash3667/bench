@@ -95,8 +95,9 @@ cwork(void *args)
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
     struct timespec ttoken;
-    uint64_t ret, tstamp;
+    uint64_t ret;
     uint64_t i;
+    double tstamp;
     void *buf;
 
     for (i = 0; i < STAT_TOTAL; i++) {
@@ -138,12 +139,14 @@ cwork(void *args)
             ret = pread(cargs->fd, buf, item->length, item->offset);
         } else {
             ret = pwrite(cargs->fd, buf, item->length, item->offset);
-            fsync(cargs->fd);
         }
         assert(ret == item->length);
-        tstamp = GET_TIME(ttoken);
-    
-        printf("Time Taken: %.8lf seconds\n\n", (double)tstamp / 1000000000UL);
+        tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+
+        cargs->statistics[item->task].total_time_consumed += tstamp;
+        cargs->statistics[item->task].total_operations += 1;
+        printf("Time Taken: %.8lf seconds\n\n", tstamp);
+
         free(item);
         free(buf);
     }
@@ -320,24 +323,24 @@ main(int argc, char *argv[])
     fd = open(args_data.path, O_RDWR | O_SYNC);
     assert(fd != -1);
 
+    // Timer.
+    targs.producer = &producer;
+    targs.consumer = &consumer;
+    targs.timer = args_data.timer;
+    ret = pthread_create(&timer, NULL, twork, &targs);
+    assert(ret == 0);
+
+    // Consumer.
+    cargs.fd = fd;
+    cargs.workload = qwl;
+    ret = pthread_create(&consumer, NULL, cwork, &cargs);
+    assert(ret == 0);
+
+    // Producer.
     pargs.rate = 1 / args_data.lambda;
     pargs.workload = qwl;
     pargs.profile = &bench_profile;
     pargs.drive_size = lseek(fd, 0L, SEEK_END);
-
-    cargs.fd = fd;
-    cargs.workload = qwl;
-
-    targs.producer = &producer;
-    targs.consumer = &consumer;
-    targs.timer = args_data.timer;
-    
-    ret = pthread_create(&timer, NULL, twork, &targs);
-    assert(ret == 0);
-
-    ret = pthread_create(&consumer, NULL, cwork, &cargs);
-    assert(ret == 0);
-
     ret = pthread_create(&producer, NULL, pwork, &pargs);
     assert(ret == 0);
 
