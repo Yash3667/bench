@@ -281,7 +281,7 @@ twork(void *args)
      * is stopped first, this state is avoided.
      ************************************************************
      */
-    
+
     global_cstate = CONSUMER_STATE_EXIT_LOOP;
     while (global_cstate != CONSUMER_STATE_EXITED_LOOP);
 
@@ -292,6 +292,9 @@ twork(void *args)
 /**
  * Incredibly crappy function to parse arguments without any
  * sort of error checking.
+ * 
+ * The error checking is meant to take place in the pyton
+ * front end for the arguments.
  */
 int 
 parse_args(int argc, char *argv[], struct bench_args *args)
@@ -384,6 +387,7 @@ main(int argc, char *argv[])
      * 
      * Also acquire the size of the disk drive.
      */
+
     fd = open(args_data.path, O_RDWR | O_SYNC);
     assert(fd != -1);
 
@@ -410,6 +414,7 @@ main(int argc, char *argv[])
     assert(ret == 0);
 
     pthread_join(timer, NULL);
+    pthread_join(consumer, NULL);
     pthread_join(consumer, NULL);
     cirq_free(qwl);
 
