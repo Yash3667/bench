@@ -8,6 +8,7 @@
  * 
  * License: MIT Public License
  */
+#include "vector/vector.h"
 #include "cirq/cirq.h"
 #include "work_profile.h"
 #include <stdlib.h>
@@ -18,6 +19,13 @@
 #define _MODEL_H_
 
 //
+// Macros
+//
+// Total number of data points.
+//  
+#define MAX_DATA_POINTS     IO_MAX_TASKS
+
+//
 // Enumerations
 //
 // Task Identifier
@@ -25,16 +33,12 @@ enum iotask {
     IO_RREAD = 0,
     IO_RWRITE,
     IO_SREAD,
-    IO_SWRITE
-};
+    IO_SWRITE,
 
-// Index for statistical collection
-enum stat_index {
-    STAT_RREAD = 0,
-    STAT_RWRITE,
-    STAT_SREAD,
-    STAT_SWRITE,
-    STAT_TOTAL
+    // This value defines the maximum number of tasks
+    // we have. Hence, this can be used as the value for
+    // the number of data points we need to collect.
+    IO_MAX_TASKS
 };
 
 //
@@ -57,9 +61,11 @@ struct work_item {
 };
 
 // Statistical Collection
-struct statistical_collection {
-    uint64_t total_time_consumed;
+struct data_collection {
+    vector *vec;
     uint64_t total_operations;
+    double total_time_consumed;
+    double avg_time_consumed;
 };
 
 // Thread arguments
@@ -73,8 +79,9 @@ struct thread_args_consumer {
      */
 
     int  fd;
+    char *file_name;
     cirq *workload;
-    struct statistical_collection statistics[STAT_TOTAL];
+    struct data_collection data[MAX_DATA_POINTS];
 };
 
 struct thread_args_producer {
@@ -125,6 +132,12 @@ _generate_work_item(struct work_profile *profile, uint64_t drive_size)
     struct work_item *item;
     long int task;
 
+    /*
+     * It is possible in case the consumer cannot function
+     * as fast as the producer that valgrind reports a memory.
+     * THAT is okay \_||_/.
+     */
+    
     item = malloc(sizeof *item);
     if (!item) {
         return NULL;

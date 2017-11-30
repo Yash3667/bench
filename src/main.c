@@ -29,7 +29,7 @@
 // Macros
 //
 // Workload Queue Count
-#define QWL_MAX     64
+#define MAX_CIRQ_LEN    64
 
 //
 // Enumerations
@@ -57,16 +57,18 @@ enum bench_args_enum {
     ARG_COUNT
 };
 
+enum consumer_state {
+    CONSUMER_STATE_INIT = 0,
+    CONSUMER_STATE_IN_LOOP,
+    CONSUMER_STATE_EXIT_LOOP,
+    CONSUMER_STATE_EXITED_LOOP
+};
+
 //
 // Global Variables
 //
 // Exit variable for consumer thread.
-//  0: Nothing.
-//  1: Exit Loop Signal.
-//  2: Exit Loop Confirmed.
-//
-// TODO: Use an enumeration.
-volatile uint8_t global_cstate = 0;
+volatile uint8_t global_cstate = CONSUMER_STATE_INIT;
 
 //
 // Structures
@@ -92,17 +94,22 @@ struct bench_args {
 void*
 cwork(void *args)
 {
+    const int default_vector_len = 64;
+
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
     struct timespec ttoken;
     uint64_t ret;
-    uint64_t i;
-    double tstamp;
+    int64_t i, j;
+    double *tstamp;
     void *buf;
+    char *ofile_name;
+    int fd;
 
-    for (i = 0; i < STAT_TOTAL; i++) {
-        cargs->statistics[i].total_time_consumed = 0;
-        cargs->statistics[i].total_operations = 0;
+    for (i = 0; i < MAX_DATA_POINTS; i++) {
+        cargs->data[i].total_time_consumed = 0;
+        cargs->data[i].total_operations = 0;
+        cargs->data[i].vec = vector_create(default_vector_len);
     }
     lseek(cargs->fd, 0L, SEEK_SET);
 
@@ -124,7 +131,8 @@ cwork(void *args)
      **********************************************************
      */
 
-    while (global_cstate == 0) {
+    global_cstate = CONSUMER_STATE_IN_LOOP;
+    while (global_cstate == CONSUMER_STATE_IN_LOOP) {
         item = cirq_get(cargs->workload);
 
         printf("%lu. O: %lu | L: %lu | T: %d\n",
@@ -132,27 +140,82 @@ cwork(void *args)
 
         buf = malloc(item->length);
         assert(buf != NULL);
-        memset(buf, 49, item->length);
 
         INIT_TIME(&ttoken);
         if (item->task == IO_RREAD || item->task == IO_SREAD) {
             ret = pread(cargs->fd, buf, item->length, item->offset);
         } else {
+            memset(buf, 49, item->length);
             ret = pwrite(cargs->fd, buf, item->length, item->offset);
         }
         assert(ret == item->length);
-        tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+        tstamp = malloc(sizeof *tstamp);
+        *tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
 
-        cargs->statistics[item->task].total_time_consumed += tstamp;
-        cargs->statistics[item->task].total_operations += 1;
-        printf("Time Taken: %.8lf seconds\n\n", tstamp);
+        cargs->data[item->task].total_time_consumed += *tstamp;
+        cargs->data[item->task].total_operations += 1;
+        vector_append(cargs->data[item->task].vec, tstamp);
+        printf("Time Taken: %.8lf seconds\n\n", *tstamp);
 
         free(item);
         free(buf);
     }
-    global_cstate = 2;
+    global_cstate = CONSUMER_STATE_EXITED_LOOP;
 
+    /*
+     * Append a ".bin" to the end of given file name. This
+     * new file contains the statistical data. In case the
+     * file name contains a '/', then extract from the last
+     * slash onwards.
+     * 
+     * Reason I am using strdup is so that I can simply free
+     * ofile_name and not care.
+     */
+
+    ofile_name = strrchr(cargs->file_name, '/');
+    if (!ofile_name) {
+        ofile_name = strdup("default_output.bin");
+        assert(ofile_name);
+    } else {
+        char *temp = ofile_name + 1;
+        ofile_name = malloc(sizeof(*ofile_name) * (strlen(temp) + 5));
+        assert(ofile_name);
+        strcpy(ofile_name, temp);
+        strcat(ofile_name, ".bin");
+    }
+    printf("%s\n", ofile_name);
+    fd = open(ofile_name, O_WRONLY | O_CREAT | O_TRUNC);
+    assert(fd != -1);
+
+    for (i = 0; i < MAX_DATA_POINTS; i++) {
+        if (cargs->data[i].total_operations > 0) {
+            cargs->data[i].avg_time_consumed = cargs->data[i].total_time_consumed / cargs->data[i].total_operations;
+        } else {
+            cargs->data[i].avg_time_consumed = 0;
+        }
+        printf("%.8lf seconds\n", cargs->data[i].avg_time_consumed);
+
+        /*
+         * The format of the output binary file is simple.
+         *  --> The total number of operations == X (8 bytes).
+         *  --> The average time consumed by 1 operation (8 bytes).
+         *  --> The list of times (X * 8 bytes).
+         *  --> Loop for next task.
+         */ 
+
+        write(fd, &cargs->data[i].total_operations, sizeof(double));
+        write(fd, &cargs->data[i].avg_time_consumed, sizeof(double));
+        for (j = 0; j < vector_size(cargs->data[i].vec); j++) {
+            tstamp = vector_get(cargs->data[i].vec, j);
+            write(fd, tstamp, sizeof *tstamp);
+            free(tstamp);
+        }   
+        vector_free(cargs->data[i].vec);
+    }
+
+    free(ofile_name);
     close(cargs->fd);
+    close(fd);
     return NULL;
 }
 
@@ -218,8 +281,9 @@ twork(void *args)
      * is stopped first, this state is avoided.
      ************************************************************
      */
-    global_cstate = 1;
-    while (global_cstate != 2);
+    
+    global_cstate = CONSUMER_STATE_EXIT_LOOP;
+    while (global_cstate != CONSUMER_STATE_EXITED_LOOP);
 
     pthread_cancel(*targs->producer);
     return NULL;
@@ -309,7 +373,7 @@ main(int argc, char *argv[])
 
     // Create the circular queue shared amongst the producer
     // and the consumer.
-    qwl = cirq_create(QWL_MAX, CIRQ_LOCKING_AND_BLOCKING);
+    qwl = cirq_create(MAX_CIRQ_LEN, CIRQ_LOCKING_AND_BLOCKING);
     assert(qwl != NULL);
 
     /* 
@@ -331,6 +395,7 @@ main(int argc, char *argv[])
     assert(ret == 0);
 
     // Consumer.
+    cargs.file_name = args_data.path;
     cargs.fd = fd;
     cargs.workload = qwl;
     ret = pthread_create(&consumer, NULL, cwork, &cargs);
@@ -345,6 +410,7 @@ main(int argc, char *argv[])
     assert(ret == 0);
 
     pthread_join(timer, NULL);
+    pthread_join(consumer, NULL);
     cirq_free(qwl);
 
     return 0;

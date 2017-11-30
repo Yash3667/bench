@@ -17,7 +17,7 @@
 typedef struct vector {
     uint64_t len, index;
     void **store;
-};
+} vector;
 
 /**
  * Create a vector with a specified initial size. This size
@@ -35,14 +35,14 @@ vector_free(vector *vec);
 /**
  * Append a new value to the vector.
  */
-int
+vector*
 vector_append(vector *vec, void *item);
 
 /**
  * Remove the last element which was appended
  * to the vector.
  */
-int 
+vector* 
 vector_remove(vector *vec);
 
 /**
@@ -56,14 +56,14 @@ vector_get(vector *vec, uint64_t index);
  * Replace the value of an element at a specified
  * index in the vector.
  */
-int
+vector*
 vector_replace(vector *vec, uint64_t index, void *item);
 
 /**
  * Acquire the size (working index) of the vector. This
  * is the effectively the size of the "array".
  */
-uint64_t 
+int64_t 
 vector_size(vector *vec);
 
 #endif

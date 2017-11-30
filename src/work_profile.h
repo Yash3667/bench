@@ -17,8 +17,8 @@
 //
 // Macros
 //
-// Max Flags Value
-#define MAX_FLAGS_VALUE     (1 << FLAG_END)
+// Max flags value
+#define MAX_FLAGS_VALUE     (1 << PROFILE_FLAGS_END)
 
 // Assert correct profile
 #define ASSERT_PROFILE(p)                                   \
@@ -43,7 +43,7 @@ enum profile_flags {
     RWRITE,
     SREAD,
     SWRITE,
-    FLAG_END
+    PROFILE_FLAGS_END
 };
 
 // 
