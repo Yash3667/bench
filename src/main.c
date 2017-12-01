@@ -135,8 +135,8 @@ cwork(void *args)
     while (global_cstate == CONSUMER_STATE_IN_LOOP) {
         item = cirq_get(cargs->workload);
 
-        printf("%lu. O: %lu | L: %lu | T: %d\n",
-        item->sequence, item->offset, item->length, item->task);
+        // printf("%lu. O: %lu | L: %lu | T: %d\n",
+        // item->sequence, item->offset, item->length, item->task);
 
         buf = malloc(item->length);
         assert(buf != NULL);
@@ -155,7 +155,7 @@ cwork(void *args)
         cargs->data[item->task].total_time_consumed += *tstamp;
         cargs->data[item->task].total_operations += 1;
         vector_append(cargs->data[item->task].vec, tstamp);
-        printf("Time Taken: %.8lf seconds\n\n", *tstamp);
+        //printf("Time Taken: %.8lf seconds\n\n", *tstamp);
 
         free(item);
         free(buf);
@@ -183,8 +183,7 @@ cwork(void *args)
         strcpy(ofile_name, temp);
         strcat(ofile_name, ".bin");
     }
-    printf("%s\n", ofile_name);
-    fd = open(ofile_name, O_WRONLY | O_CREAT | O_TRUNC);
+    fd = open(ofile_name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     assert(fd != -1);
 
     for (i = 0; i < MAX_DATA_POINTS; i++) {
@@ -193,7 +192,7 @@ cwork(void *args)
         } else {
             cargs->data[i].avg_time_consumed = 0;
         }
-        printf("%.8lf seconds\n", cargs->data[i].avg_time_consumed);
+        printf("%ld. Average Latency: %.8lf seconds\n", i, cargs->data[i].avg_time_consumed);
 
         /*
          * The format of the output binary file is simple.
@@ -212,6 +211,7 @@ cwork(void *args)
         }   
         vector_free(cargs->data[i].vec);
     }
+    printf("\n");
 
     free(ofile_name);
     close(cargs->fd);
@@ -258,8 +258,14 @@ void*
 twork(void *args)
 {
     struct thread_args_timer *targs = args;
+    long int i;
 
-    sleep(targs->timer);
+    for (i = 0; i < targs->timer; i++) {
+        sleep(1);
+        printf("%ld...", i+1);
+        fflush(stdout);
+    }
+    printf("\n");
 
     /*
      ************************************************************
