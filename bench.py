@@ -1,6 +1,6 @@
 """
 Python front end for executing the drive workload benchmarking
-tool.
+tool. Incredibly crappy code which someone (me) should fix.
 
 Author: Yash Gupta <yash_gupta12@live.com>
 Copyright: Yash Gupta
@@ -87,7 +87,6 @@ print
 process = subprocess.check_call(command, shell=True) 
 
 # Build graph
-path = "/dev/sdb"
 path = path[path.rfind('/')+1:] + ".bin"
 content = ""
 
@@ -212,7 +211,6 @@ for i in range(len(latencies)):
 trace0 = go.Bar(
     x=['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write'],
     y=latencies,
-    name='Avg. Latencies (seconds)',
     marker=dict(
         color='rgb(49,130,189)'
     ),
@@ -223,7 +221,6 @@ trace0 = go.Bar(
 trace1 = go.Bar(
     x=['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write'],
     y=thru,
-    name='Avg. Throughput (MB/s)',
     marker=dict(
         color='rgb(204,204,204)',
     ),
@@ -232,8 +229,8 @@ trace1 = go.Bar(
     opacity=0.85,
 )
 
-data = [trace0, trace1]
-layout = go.Layout(
+data0 = [trace0]
+layout0 = go.Layout(
     xaxis=dict(tickangle=-45),
     yaxis=dict(
         type='log',
@@ -241,8 +238,23 @@ layout = go.Layout(
         showgrid=True
     ),
     barmode='group',
-    title="Performance Metrics",
+    title="Average Latencies (seconds)",
 )
 
-fig = go.Figure(data=data, layout=layout)
-py.plot(fig, filename=args[2])
+fig = go.Figure(data=data0, layout=layout0)
+py.plot(fig, filename=args[2] + ".lat")
+
+data1 = [trace1]
+layout1 = go.Layout(
+    xaxis=dict(tickangle=-45),
+    yaxis=dict(
+        type='log',
+        autotick=False,
+        showgrid=True
+    ),
+    barmode='group',
+    title="Average Throughput (MB/s)",
+)
+
+fig = go.Figure(data=data1, layout=layout1)
+py.plot(fig, filename=args[2] + ".thru")

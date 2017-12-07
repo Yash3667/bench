@@ -1,0 +1,70 @@
+\documentclass[10pt, author, twocolumn]{article}
+\usepackage[margin=1in]{geometry}
+
+% Author Information
+\title{\vspace{-0ex}Bench: Evaluating Arbitrary Workloads}
+\author{Yash Gupta \\
+ygupta@ucsc.edu}
+\date{\vspace{-3ex}}
+
+\begin{document}
+\maketitle
+	
+\begin{abstract}
+\noindent Software applications use medium like HDD (Hard Disk Drives) and SSD (Solid State Drives) to store information and data. The storage workloads for these applications vary, ranging from highly sequntial workloads to ones which utilize the drives in a random order. Choosing the correct medium of storage is essential to delivering optimal performance for these applications. Hence, it is crucial to benchmark these workloads to identify the most suitable storage medium. Furthermore, it is important in general to recognize which workloads suit a specific storage medium the most. The work presented in this paper introduces an application "bench" which provides a way to benchmark these varying types of workloads using a consumer/producer architecture. Using \textit{bench}, we evaluate and present the result of some common industrial workloads and their performance metrics on a variety of storage medium.
+\end{abstract}
+
+\section{Introduction}
+Most computer algorithms utilize the storage disk inside of a system. While some access the disk directly, as in the case of data structures like B-Trees and LSM-Trees \cite{}, others may end up accessing them indirectly, perhaps through the means of a paging algorithm in a virtual memory system. These algorithms effectively define a workload which is to be executed by the system. More often than not, the storage medium of a system is the main bottleneck which limits the performance of this workload on any given system \cite{}. This is not hard to believe, particularly because the performance differences between commodity storage media like HDD and SSD pale in comparison to CPU, RAM, and even networking nowadays \cite{}.
+
+To be able to reduce or even elminate this bottleneck, it is critical to realize which class of storage media technology performs most efficiently for a given workload. Using this information, one can make better decisions with regards to system design and provide a more definitive performance analysis for the overall system. However, all algorithms produce different workloads and in most cases, a software application itself employs many different algorithms. Hence, it makes more sense to refer to a workload as part of an application rather than that of an algorithm. This abstraction is also extendable to systems which employ different sets of applications to provide some service, an example being an operating system such as Unix. In such a case, workload may refer to the overall workload of the operating system rather than the seperate workloads of the applications within it.
+
+Keeping this in mind, it is important to understand that different storage media performs differently for particular types of workloads. Conventional rotating media like hard disk drives perform optimally in a sequential workload \cite{}, whereas flash based storage such as used in solid state drives can perform admirably even in a random-heavy workload \cite{}. However, flash based storage costs more than rotating media storage per giga byte. This means that an engineer designing a system needs to make careful decisions on the inclusion of hard drives, solid state drives and even a combination of both. Driving these decisions is usually a benchmark, highlighting the performance and cost characteristics of the different types of storage media. However, performing such an exhaustive benchmark is a non-trivial task. Different classes of applications produce completely different workloads. For example, a web page may produce small-random oriented workloads whereas a paging algorithm for an operating system might produce a long-sequential one \cite{}.
+
+In this paper, we present a benchmarking application called \textit{bench}, which uses a probability distribution of random and sequential I/O, along with an exponentially distributed arrival interval to simulate the arrival of work. We argue that such a benchmarking architecture is capable of evaluating any arbitrary workload, as every storage workload can be dissolved into these primitives. We then use \textit{bench} to evaluate benchmarks of some common industrial workloads such as database processing, file transferring and memory paging. 
+
+The rest of the paper is structured as follows: Section 2 provides a background on the different types of storage media used in industrial applications. Section 3 explains the design of \textit{bench} along with its implementation. Section 4 discusses the evaluation of certain workloads performed using \textit{bench} and finally, section 5 concludes the paper, highlighting some limitations and proposed future work for \textit{bench}.
+
+\section{Background}
+
+The two most common options used for industrial storage comprise of rotation based media, such as hard disk drives, and flash based media, such as solid state drives. Both of these media have their sets of pros and cons which make them suitable for different kinds of workloads. For industrial class applications, the choice of choosing between these media is crucial as they are tailored to different circumstances and situations. This section provides differences between the two along with some of their assumed performance characteristics. 
+
+\subsection{Rotating Media}
+
+For the purposes of this paper, the only rotating media we consider is a hard disk drive. While there are other rotating storage media such as a Compact Disk (CD), they are not usually used for long term storage, and hence, they do not make a viable option for large scale storage systems.
+
+Most of the information on HDDs presented here is a paraphrasing of \cite{}. For readers looking for a more in-depth and technical explanation for the working of disk drives, chapter 37 in the book provides a solid ground. 
+
+The core concept behind the working of a disk drive is magnetization. Each disk drive has a set of \textbf{platters}, which are smooth, double-sided surfaces. These platters are usually made of aluminum and are coated with a thin magnetic layer. The idea is that this layer can be magnetized to store bits, enabling the platter to store bits even when the disk drive in turned off. This is due to the fact that the magnetic layer does not lose its magnetization upon the loss of current. 
+
+All the platters in a disk drive are organised as a set of concentric circles, each of which is known as a \textbf{track}. These tracks are then further divided into smaller regions called \textbf{sectors}, and the sector size denotes the granularity of I/O for any given disk drive. The tracks on a platter are packed together incredibly tightly, with hundreds of tracks fitting within the width of a human hair.
+
+The disk platters themselves are attached to a \textbf{spindle}, which in turn is connected to a motor which spins at an incredibly fast rate. It is typical for modern disk drives to have rotations in the range of 7200-15000 RPM (rotations per minute). 
+
+Finally, for reading or writing to the disk, a \textbf{disk head} (attached to a \textbf{disk arm}) is used. This head hovers just slightly above the platter, and is free to move between the different tracks. The head is able to read the magnetic nature of the layer at its position, sensing whether it is north or south. It is also capable of changing this nature by applying a focused magnetic field, hence providing it the ability to write a bit onto the platter.
+
+Due to this design, disk drives suffer from costly operations known as \textbf{rotational delays} and \textbf{seek time}. Rotational delays are the delays encountered when the disk head needs to wait for the correct sector within a track to come under it. Seek time on the other hand is the time it takes for a disk head to move to another track on the platter altogether. Both of these operations incur a heavy time penalty, and even though certain optimizations have been made to reduce their cost (such as track skewing), they remain the leading cause of slower disk performance. 
+
+One particular area where disk drives are notoriously bad in terms of performance is small, random I/O. For any I/O request, disk drives perform better if the sectors to be read are closer together. Moreover, as each request incurs overhead from seeking and rotating, having a large number of small requests means that the overhead penalty is experienced more often. Owing to these factors, it is natural to believe that long sequential I/O is more suited to disk drives as it largely avoids the overhead penalty of seeking and rotating. 
+
+Another noted downfall of disk drives is the involvement of moving mechanical parts, such as the disk arm, which often break down and require repair and replacement.
+
+\subsection{Flash Media}
+
+Flash memory is a subset of EEPROM (electrically erasable programmable read-only memory). While there are two types of flash memory, namely NAND-flash and NOR-flash, this paper focuses on NAND-flash as it is the more commonly deployed variant \cite{}. Hence, further mentions of flash memory within this paper refer to the use of NAND-flash class of technology. 
+
+There are several different types of storage technologies built on top of flash memory. Some examples include solid state drives, usb-drives, and micro SD cards. This paper provides a general background on flash memory, as the foundation for all these flash storage technologies is largely the same. Our benchmarks however, focus on solid state drives and usb-drives as they are used more commonly. 
+
+The main idea behind flash memory is the use of floating-gate transistors \cite{}. Without diving into too much detail, the basic idea involves detecting the presence of a charge in a \textbf{flash cell}. When a certain voltage is applied to parts of the cell, current is allowed to flow through the transistor. We can detect the charge present in the cell by monitoring this current, allowing us to judge the current state of the cell \cite{}. When an even greater voltage is applied, a process known as quantum tunneling allows us to trap an electron in the transistor, allowing us to effectively change the charge of the cell and write a single bit of information to it.
+
+Flash memory groups a set of these cells into \textbf{pages}. A single page is the granularity for reading and writing to flash memory, and in general, page size is set to 4 KB. One problem with flash memory is that a page cannot be written to unless it has been previously erased. Unfortunately, flash memory performs the erase operation on a \textbf{block} granularity. A block is a collection of pages and usually block size is much greater than page size. The reason that this is the case is because the erase operation consumes a lot of voltage, which in turn consumes more power and at the same time damages the structure of the transistor in a cell. Hence, an erase operation batches a number of pages together and erases them all at the same time. While this improves the endurance and performance of flash memory, the assymetric granularity of writes and erases create an interesting problem: updates to flash memory cannot be done in-place.
+
+A proposed solution to this problem is the use of management firmware known as a flash translation layer (FTL) \cite{}. An FTL essentially provides a mapping from logical addresses (which are visible to a host system) to physical addresses (which are not visible to a host system) on the flash chip. In an example FTL, if a host were to randomly update a single page in flash memory, the FTL would copy the entire block which contains the requested page over to another place in flash memory, making sure to replace the original page with the modified one. It would then change its mapping table, establishing the new mapping of logical to physical addresses. By doing this, the FTL can avoid erasing blocks frequently, increasing the lifetime of the flash memory. Unfortunately however, in this case, the flash memory incurred a lot more writes than intended, increasing the write latency and decreasing overall throughput. This phenomenon is known as \textbf{write amplification} (WA) and a lot of research has gone into building FTLs which can provide lower write amplification. Regardless of any progress on that front however, write amplification continues to be a major bottleneck for flash memory and prevents random writes (which incur heavy write amplification as explained above) to perform efficiently.
+
+Owing to such characteristics, flash aware software systems have begun using different design paradigms to optimize the use of flash memory. One such example is the use of log based structures wherein all information and operations are performed as appends to a file, making sure that previously written pages are not updated further \cite{}. 
+
+An important thing to note is that flash memory performs admirably for random reads when compared to disks because it incurs no overhead from rotations and seeking. However, there are physical challenges which prevent flash based storage to provide the same capacity as disk \cite{}. As a result of that, flash storage is more expensive than disk based storage and requires novel techniques to make it viable for the enterprise \cite{}. 
+
+\section{Design}
+	 
+\end{document}
