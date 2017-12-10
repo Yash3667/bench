@@ -82,6 +82,12 @@ Consider a workload which processes I/O tasks with a very strict order. A random
 \subsection{Arrival Time}
 Besides the task distribution, this is another challenge benchmarking applications face. \textit{How to accurately model the arrival of work, or in layman terms, how does a benchmarking application know when a client has arrived?}. 
 
+It is inaccurate to assume that an application is always busy. Conversely, it is also inaccurate to assume that an application is never busy. Moreover, even if one knows the average arrival time of clients for an application, it is inaccurate to assume that the application processes the clients at constant intervals. However, there is a statistical distribution which has been proven to model interval times between discrete events accurately. \textit{bench} uses this distribution as a basis for arrival times of work. 
+
+A \textbf{Poisson point process} is a process in which events occur continously and independently at a constant average rate \cite{}. This means that as time $t \Rightarrow \infty$, the average of the intervals between events in a point process converge. Hence, for a system with a known average, \textit{such as a workload}, the poisson point process can model the interval times between a pair of events. An \textbf{exponential distribution} is the probability distribution which describes an interval between a pair of events in a poisson point process \cite{}. Hence, using an exponential distribution, we can accurately model the arrival of work for any given workload.
+
+However, this approach is not perfect. Suppose a workload experiences different arrival times under different curcumstances, such as time of day. A workload which experiences a different arrival time of clients between day and night cannot be modelled correctly with an average. The average shadows the different stress levels which the workload produces and coalesces them into a single, more normalized arrival time. This can lead to inaccurate benchmarks. We aim to solve this issue in future revisions of \textit{bench}.
+
 \subsection{Distributed Architecture}
 
 \section{Implementation}
