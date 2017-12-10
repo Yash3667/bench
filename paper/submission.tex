@@ -96,13 +96,23 @@ As the network is not a bottleneck anymore, we decided that we can combine the f
 Moreover, we decided that a single instance of \textit{bench} will only benchmark a single workload. We pin each entity to its own thread and so benchmarking multiple workloads simply means more threads. As the relative overhead of setting up an entity is small, having separate instances represent different workloads is not any more costlier and provides a cleaner, more manageable design. 
 
 \section{Implementation}
-Our goal was to make \textit{bench} an easy to use and flexible application. As \textit(bench) requires heavy parametrization due to its design, we decided that the best way to bu
-want it to be easy to sue and flexible. something something parametrization...benchmark engine....C...
+Our goal was to make \textit{bench} an easy to use and flexible application. As \textit{bench} requires heavy parametrization due to its design, we decided that the best way to build it is to divide the application into modules and then build the modules in a language most suitable for it.
+
+As processing of workloads requires multiple threads and low level disk access, we decided that the core benchmark engine should be built in \textbf{C}. Meanwhile, we used \textbf{python} to build a script to handle the higher level tasks such as parsing arguments and building graphs. We defined a file format which neatly collects all the benchmark variables such as task distribution and the python script reads in such a file and then forwards these variables as a tuple to a compiled binary in the form of program arguments. From there, the benchmarking engine takes over and begins the benchmark. 
 
 \subsection{Work Profiles}
-cumulatiive distrib...
+\textit{bench} represents a given workload as a \textbf{work profile}. A work profile is essentially a structure which comprises of the tunable knobs for the benchmark. These include the distribution of the types of I/O, along with a respective size for them. 
+
+Work profiles store the probability distribution of the tasks using a cumulative distribution sum and intervals within this sum represent the task. For exmaple, consider a workload with the following distribution: random read (50\%), random write (10\%), sequential read (15\%) and sequntial write (25\%). The work profile will store these as: random read ([1, 50]), random write ([51, 60]), sequential read ([61, 75]) and sequntial write ([76, 100]). Now, to generate a task with respect to the distribution, all we need to do is generate a uniformly distributed random number $x$ in [1, 100]. Depending on the interval bracket $x$ falls in, we choose a size and an offset for the I/O task. 
+
+If a task is random, then a random offset is generated in [0, DRIVE\_SIZE-TASK\_SIZE]. In case the task is sequential, then the next corresponding offset is calculated with the help of static variables. So for the previous example, if the random read size was 4 KB and $x = 20$, then a random offset will be generated in [0, DRIVE\_SIZE-4096] and this offset will be paired with the 4 KB size in a tuple and sent forward for processing.
+
+The current implementation of \textit{bench} uses \texttt{rand()} from the standard library to generate random numbers. We are aware of the fact that \texttt{rand()} has shown to \textbf{NOT} be uniformly distributed. For future versions, we are looking into using the linux system call \texttt{getrandom()} as our entropy source. 
 
 \subsection{Multithreading}
+We implemented the simulation of a distributed system using threads in \textit{bench}. The idea is that we have a \textbf{producer} thread and a \textbf{consumer} thread (which simulate a frontend and a backend respectively) which are both managed by a \textbf{timer} thread.
+
+
 
 \subsection{Graphs}
 	 
