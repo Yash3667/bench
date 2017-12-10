@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2017.12.9)  9 DEC 2017 22:31
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017/Debian) (preloaded format=pdflatex 2017.12.9)  10 DEC 2017 00:08
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -119,10 +119,12 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 
 ] [2] [3]
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <7> on input line 87.
+(Font)              <7> on input line 85.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <5> on input line 87.
- [4]
+(Font)              <5> on input line 85.
+ [4] [5
+
+]
 (./submission.aux) ) 
 Here is how much of TeX's memory you used:
  755 strings out of 492990
@@ -140,10 +142,10 @@ b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr
 texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive
 /texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmti10.pfb>
-Output written on submission.pdf (4 pages, 119608 bytes).
+Output written on submission.pdf (5 pages, 121978 bytes).
 PDF statistics:
- 49 PDF objects out of 1000 (max. 8388607)
- 34 compressed objects within 1 object stream
+ 52 PDF objects out of 1000 (max. 8388607)
+ 36 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

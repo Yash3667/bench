@@ -66,9 +66,7 @@ Owing to such characteristics, flash aware software systems have begun using dif
 An important thing to note is that flash memory performs admirably for random reads when compared to disks because it incurs no overhead from rotations and seeking. However, there are physical challenges which prevent flash based storage to provide the same capacity as disk \cite{}. As a result of that, flash storage is more expensive than disk based storage and requires novel techniques to make it viable for the enterprise \cite{}. 
 
 \section{Design}
-In this section, we explain the design choices made for \textit{bench}. We argue that these design choices allow \textit{bench} to benchmark most if not all types of workloads. 
-
-By using a probability distribution for tasks and an exponential distribution for arrival time, along with a simulated distributed environment, \textit{bench} is capable of modelling most industrial workloads. 
+We have designed \textit{bench} with keeping this background in mind. In this section, we explain the design choices made for \textit{bench}. We argue that these design choices allow \textit{bench} to benchmark most if not all types of workloads. By using a probability distribution for tasks and an exponential distribution for arrival time, along with a simulated distributed environment, \textit{bench} is theoretically capable of modelling most industrial workloads. 
 
 \subsection{I/O Task}
 Before we begin to explain the design of \textit{bench}, it is important to understand certain storage primitives such as an \textbf{I/O Task}. Any I/O to a drive will consist of either \textbf{read} or \textbf{write} operations. These operations fall within two I/O classes, namely \textbf{random} and \textbf{sequential}. 
@@ -77,7 +75,7 @@ An I/O task is essentially a tuple which describes an I/O operation of a certain
 
 Based on this primitive of an I/O task, we can break down any given workload into a list of I/O tasks it performs. Using this list, we can build a distribution which describes the probability of each type of task occuring. This distribution is simple to build as there are only four types of I/O tasks: random read, random write, sequential read and sequential write. If an application was to process this list, then it would execute the same workload as the original application, albeit without any application context. While not having context generally makes no difference to most workloads, it makes accurately benchmarking certain workloads difficult.
 
-Consider a workload which processes I/O tasks with a very strict order. A random read in this workload is followed by a sequential write, which is then followed by a random read and so on. While it is possible to benchmark such a workload through a probability distribution, a benchmark based solely on task distribution will be inaccurate as it will not be able to guarentee the order of the tasks. Future version of \textit{bench} aim to find a workaround.
+Consider a workload which processes I/O tasks with a very strict order. A random read in this workload is followed by a sequential write, which is then followed by a random read and so on. While it is possible to benchmark such a workload through a probability distribution, a benchmark based solely on task distribution will be inaccurate as it will not be able to guarentee the order of the tasks. Future versions of \textit{bench} aim to find a workaround.
 
 \subsection{Arrival Time}
 Besides the task distribution, this is another challenge benchmarking applications face. \textit{How to accurately model the arrival of work, or in layman terms, how does a benchmarking application know when a client has arrived?}. 
@@ -89,8 +87,16 @@ A \textbf{Poisson point process} is a process in which events occur continously 
 However, this approach is not perfect. Suppose a workload experiences different arrival times under different curcumstances, such as time of day. A workload which experiences a different arrival time of clients between day and night cannot be modelled correctly with an average. The average shadows the different stress levels which the workload produces and coalesces them into a single, more normalized arrival time. This can lead to inaccurate benchmarks. We aim to solve this issue in future revisions of \textit{bench}.
 
 \subsection{Distributed Architecture}
+Most industrial applications are built as distributed systems which divide work amongst different entities in order to better process requests from clients. In a generic distributed application, a frontend system collects a request from a user and forwards it to a backend system. This backend system processes this request and ships the information back to the frontend or to the client. 
+
+The reason this system is as such is because industrial applications operate at a huge scale and service thousands of requests at a given time. It is simply not possible for a single machine to keep up with the incoming requests from impatient clients. For a system such as this, the main bottleneck used to be the latency of network connections which connected the frontend to the backend. However, with advances in network technology and the introduction of standards such as \textbf{Infiniband} \cite{}, this is not true anymore. Instead, the main bottleneck for these systems is the storage media, which operate at a fraction of the speed of CPU and RAM. 
+
+As the network is not a bottleneck anymore, we decided that we can combine the frontend and the backend into a single application and simulate them using threads instead of building two separate applications, one for the frontend and one for the backend, and then connect them together using a network simulator. We claim that having two separate applications because of something which as is does not limit performance provides no benefit to having an application which simulates entities using threads. Infact, we argue that bulding separate applications leads to more bug prone software and will overall provide deprecating results. 
+
+Moreover, we decided that a single instance of \textit{bench} will only benchmark a single workload. We pin each entity to its own thread and so benchmarking multiple workloads simply means more threads. As the relative overhead of setting up an entity is small, having separate instances represent different workloads is not any more costlier and provides a cleaner, more manageable design. 
 
 \section{Implementation}
+Our goal was to make \textit{bench} an easy to use and flexible application. As \textit(bench) requires heavy parametrization due to its design, we decided that the best way to bu
 want it to be easy to sue and flexible. something something parametrization...benchmark engine....C...
 
 \subsection{Work Profiles}

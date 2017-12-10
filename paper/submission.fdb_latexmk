@@ -1,7 +1,7 @@
 # Fdb version 3
-["pdflatex"] 1512887470 "/home/wolf/Desktop/bench/paper/submission.tex" "submission.pdf" "submission" 1512887470
+["pdflatex"] 1512893297 "/home/wolf/Desktop/bench/paper/submission.tex" "submission.pdf" "submission" 1512893297
   "/etc/texmf/web2c/texmf.cnf" 1512879747 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/wolf/Desktop/bench/paper/submission.tex" 1512887470 18450 07d4f96a5d62d4e45cdcdb63585b59be ""
+  "/home/wolf/Desktop/bench/paper/submission.tex" 1512893297 20796 327ec4e85b4992c92eba8273f0c259b9 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1480098670 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1480098701 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1480098701 1324 c910af8c371558dc20f2d7822f66fe64 ""
@@ -35,9 +35,9 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1503024366 32036 8f10cb8f6ef259fb5791f09c065d3d13 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1512880513 2377213 8bc19c9e6d8db8e1c35694d1be199981 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1512880539 4131328 b033fe3f3e4cbc8b36a673a3a507fda9 ""
-  "submission.aux" 1512887470 936 3cea93eb8733feb0cca7daa34ec283df ""
-  "submission.tex" 1512887470 18450 07d4f96a5d62d4e45cdcdb63585b59be ""
+  "submission.aux" 1512893297 936 0572ea33c251079b8d4aee02d2b3f924 ""
+  "submission.tex" 1512893297 20796 327ec4e85b4992c92eba8273f0c259b9 ""
   (generated)
-  "submission.aux"
   "submission.pdf"
+  "submission.aux"
   "submission.log"
