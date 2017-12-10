@@ -110,10 +110,35 @@ If a task is random, then a random offset is generated in [0, DRIVE\_SIZE-TASK\_
 The current implementation of \textit{bench} uses \texttt{rand()} from the standard library to generate random numbers. We are aware of the fact that \texttt{rand()} has shown to \textbf{NOT} be uniformly distributed. For future versions, we are looking into using the linux system call \texttt{getrandom()} as our entropy source. 
 
 \subsection{Multithreading}
-We implemented the simulation of a distributed system using threads in \textit{bench}. The idea is that we have a \textbf{producer} thread and a \textbf{consumer} thread (which simulate a frontend and a backend respectively) which are both managed by a \textbf{timer} thread.
+We implemented the simulation of a distributed system using threads in \textit{bench}. The idea is that we have a \textbf{producer} thread and a \textbf{consumer} thread (which simulate a frontend and a backend respectively) which are both managed by a \textbf{timer} thread. The timer thread works in tandem with the consumer thread to enforce an order of termination between the consumer and the producer thread. If this order is not followed, the application may reach a state where the consumer sleeps for an indefinite amount of amount. This is explained further in the following paragraphs.
 
+The producer has a relatively trivial task compared to the consumer. It simply executes an infinite loop with these instructions: 
 
+\begin{enumerate}
+    \item Acquire an exponential variate of the arrival averge in microseconds. Let this be $n$.
+    \item Call \texttt{usleep} with $n$ as the parameter. 
+    \item Upon waking up, generate an I/O task and append it to the circular queue shared with the consumer. 
+    \item Repeat. 
+\end{enumerate}
+
+The consumer on the other hand does a lot more. Its workflow is divided into separate phases which are represented using an \texttt{enum}. They are: \texttt{initialize}, \texttt{process} and \texttt{output}. The initialize phase is for setting up allocations and opening the required file descriptor. The process phase is a loop which processes I/O tasks acquired from the circular queue. Finally, the output phase is where the consumer dumps all statistically relevant information for making the performance graphs. 
+
+The reason the consumer is much more complex and requires these phases is because unlike the producer thread which outputs nothing, the timer thread cannot simply call \texttt{pthread\_cancel()} on the consumer as the consumer needs to output data it acquires during the processing phase. This is also the reason the timer thread needs to enforce a termination order between the producer and the consumer. 
+
+Consider a situation where the circular queue is empty and the consumer goes to sleep, hoping the producer will wake it up. If the timer thread cancels the prodcuer before it can wake the consumer up, then the consumer sleeps indefinitely and the only way to come back to a workable state is to manually kill the program. To avoid such a situation, the following ordering policy takes place:
+
+\begin{enumerate}
+    \item The timer thread signals the consumer using a global variable to changes its state from process to output. 
+    \item Once the consumer acknowledges the signal and exits the processing loop, it sends a confirmation to the timer thread. 
+    \item Upon receiving the confirmation, the timer thread calls \texttt{pthread\_cancel()} on the producer and then calls a \texttt{pthread\_join()} on the consumer.
+    \item After the consumer finishes the output phase, it exists cleanly and the join in the timer thread returns. 
+\end{enumerate}
+
+By enforcing this order, the producer thread stays active for as long as the consumer might require it and hence, we can avoid the indefinite sleep problem. 
 
 \subsection{Graphs}
+The consumer collects a lot of data during its process phase. All of this data is outputted to a file during the output phase. The python phase which started the benchmark parses this file and uses the \texttt{plotly} module to build graphs from it.
+
+We decided to use the \texttt{plotly} module over the better known \texttt{matplotlib} module as, in out opinion, graphs from the \texttt{plotly} are more visually appealing. 
 	 
 \end{document}
