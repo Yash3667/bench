@@ -11,7 +11,7 @@ ygupta@ucsc.edu}
 \maketitle
 	
 \begin{abstract}
-\noindent Software applications use medium like HDD (Hard Disk Drives) and SSD (Solid State Drives) to store information and data. The storage workloads for these applications vary, ranging from highly sequntial workloads to ones which utilize the drives in a random order. Choosing the correct medium of storage is essential to delivering optimal performance for these applications. Hence, it is crucial to benchmark these workloads to identify the most suitable storage medium. Furthermore, it is important in general to recognize which workloads suit a specific storage medium the most. The work presented in this paper introduces an application "bench" which provides a way to benchmark these varying types of workloads using a consumer/producer architecture. Using \textit{bench}, we evaluate and present the result of some common industrial workloads and their performance metrics on a variety of storage medium.
+Software applications use medium like HDD (Hard Disk Drives) and SSD (Solid State Drives) to store information and data. The storage workloads for these applications vary, ranging from highly sequntial workloads to ones which utilize the drives in a random order. Choosing the correct medium of storage is essential to delivering optimal performance for these applications. Hence, it is crucial to benchmark these workloads to identify the most suitable storage medium. Furthermore, it is important in general to recognize which workloads suit a specific storage medium the most. The work presented in this paper introduces an application "bench" which provides a way to benchmark these varying types of workloads using a consumer/producer architecture. Using \textit{bench}, we evaluate and present the result of some common industrial workloads and their performance metrics on a variety of storage medium.
 \end{abstract}
 
 \section{Introduction}
@@ -23,7 +23,7 @@ Keeping this in mind, it is important to understand that different storage media
 
 In this paper, we present a benchmarking application called \textit{bench}, which uses a probability distribution of random and sequential I/O, along with an exponentially distributed arrival interval to simulate the arrival of work. We argue that such a benchmarking architecture is capable of evaluating any arbitrary workload, as every storage workload can be dissolved into these primitives. We then use \textit{bench} to evaluate benchmarks of some common industrial workloads such as database processing, file transferring and memory paging. 
 
-The rest of the paper is structured as follows: Section 2 provides a background on the different types of storage media used in industrial applications. Section 3 explains the design of \textit{bench} along with its implementation. Section 4 discusses the evaluation of certain workloads performed using \textit{bench} and finally, section 5 concludes the paper, highlighting some limitations and proposed future work for \textit{bench}.
+The rest of the paper is structured as follows: Section 2 provides a background on the different types of storage media used in industrial applications. Section 3 explains the design of \textit{bench} and section 4 explains its implementation. Section 5 discusses the evaluation of certain workloads performed using \textit{bench} and finally, section 6 concludes the paper.
 
 \section{Background}
 
@@ -59,12 +59,39 @@ The main idea behind flash memory is the use of floating-gate transistors \cite{
 
 Flash memory groups a set of these cells into \textbf{pages}. A single page is the granularity for reading and writing to flash memory, and in general, page size is set to 4 KB. One problem with flash memory is that a page cannot be written to unless it has been previously erased. Unfortunately, flash memory performs the erase operation on a \textbf{block} granularity. A block is a collection of pages and usually block size is much greater than page size. The reason that this is the case is because the erase operation consumes a lot of voltage, which in turn consumes more power and at the same time damages the structure of the transistor in a cell. Hence, an erase operation batches a number of pages together and erases them all at the same time. While this improves the endurance and performance of flash memory, the assymetric granularity of writes and erases create an interesting problem: updates to flash memory cannot be done in-place.
 
-A proposed solution to this problem is the use of management firmware known as a flash translation layer (FTL) \cite{}. An FTL essentially provides a mapping from logical addresses (which are visible to a host system) to physical addresses (which are not visible to a host system) on the flash chip. In an example FTL, if a host were to randomly update a single page in flash memory, the FTL would copy the entire block which contains the requested page over to another place in flash memory, making sure to replace the original page with the modified one. It would then change its mapping table, establishing the new mapping of logical to physical addresses. By doing this, the FTL can avoid erasing blocks frequently, increasing the lifetime of the flash memory. Unfortunately however, in this case, the flash memory incurred a lot more writes than intended, increasing the write latency and decreasing overall throughput. This phenomenon is known as \textbf{write amplification} (WA) and a lot of research has gone into building FTLs which can provide lower write amplification. Regardless of any progress on that front however, write amplification continues to be a major bottleneck for flash memory and prevents random writes (which incur heavy write amplification as explained above) to perform efficiently.
+A proposed solution to this problem is the use of management firmware known as a \textbf{flash translation layer (FTL)} \cite{}. An FTL essentially provides a mapping from logical addresses (which are visible to a host system) to physical addresses (which are not visible to a host system) on the flash chip. In an example FTL, if a host were to randomly update a single page in flash memory, the FTL would copy the entire block which contains the requested page over to another place in flash memory, making sure to replace the original page with the modified one. It would then change its mapping table, establishing the new mapping of logical to physical addresses. By doing this, the FTL can avoid erasing blocks frequently, increasing the lifetime of the flash memory. Unfortunately however, in this case, the flash memory incurred a lot more writes than intended, increasing the write latency and decreasing overall throughput. This phenomenon is known as \textbf{write amplification} (WA) and a lot of research has gone into building FTLs which can provide lower write amplification. Regardless of any progress on that front however, write amplification continues to be a major bottleneck for flash memory and prevents random writes (which incur heavy write amplification as explained above) to perform efficiently.
 
 Owing to such characteristics, flash aware software systems have begun using different design paradigms to optimize the use of flash memory. One such example is the use of log based structures wherein all information and operations are performed as appends to a file, making sure that previously written pages are not updated further \cite{}. 
 
 An important thing to note is that flash memory performs admirably for random reads when compared to disks because it incurs no overhead from rotations and seeking. However, there are physical challenges which prevent flash based storage to provide the same capacity as disk \cite{}. As a result of that, flash storage is more expensive than disk based storage and requires novel techniques to make it viable for the enterprise \cite{}. 
 
 \section{Design}
+In this section, we explain the design choices made for \textit{bench}. We argue that these design choices allow \textit{bench} to benchmark most if not all types of workloads. 
+
+By using a probability distribution for tasks and an exponential distribution for arrival time, along with a simulated distributed environment, \textit{bench} is capable of modelling most industrial workloads. 
+
+\subsection{I/O Task}
+Before we begin to explain the design of \textit{bench}, it is important to understand certain storage primitives such as an \textbf{I/O Task}. Any I/O to a drive will consist of either \textbf{read} or \textbf{write} operations. These operations fall within two I/O classes, namely \textbf{random} and \textbf{sequential}. 
+
+An I/O task is essentially a tuple which describes an I/O operation of a certain size at a specific offset in the drive. Depending upon the relation of this I/O task to previous I/O tasks, it may be classified as either random or sequential. Random I/O is usally smaller in size and in most cases bears no correspondance to previously issued I/O tasks in the system. Sequential I/O on the other hand is usually larger and has a direct correspondance to previously issued tasks. For example, consider a workload which reads a drive at 1 MB per read request. If the first read for the workload takes place at offset 0, then the next sequential read will take place at offset 1 MB. On the other hand, if the workload processed reads randomly, then such a correspondance between the two read requests wouldn't likely exist. While this assumption is not always true, it is a fair one to make.
+
+Based on this primitive of an I/O task, we can break down any given workload into a list of I/O tasks it performs. Using this list, we can build a distribution which describes the probability of each type of task occuring. This distribution is simple to build as there are only four types of I/O tasks: random read, random write, sequential read and sequential write. If an application was to process this list, then it would execute the same workload as the original application, albeit without any application context. While not having context generally makes no difference to most workloads, it makes accurately benchmarking certain workloads difficult.
+
+Consider a workload which processes I/O tasks with a very strict order. A random read in this workload is followed by a sequential write, which is then followed by a random read and so on. While it is possible to benchmark such a workload through a probability distribution, a benchmark based solely on task distribution will be inaccurate as it will not be able to guarentee the order of the tasks. Future version of \textit{bench} aim to find a workaround.
+
+\subsection{Arrival Time}
+Besides the task distribution, this is another challenge benchmarking applications face. \textit{How to accurately model the arrival of work, or in layman terms, how does a benchmarking application know when a client has arrived?}. 
+
+\subsection{Distributed Architecture}
+
+\section{Implementation}
+want it to be easy to sue and flexible. something something parametrization...benchmark engine....C...
+
+\subsection{Work Profiles}
+cumulatiive distrib...
+
+\subsection{Multithreading}
+
+\subsection{Graphs}
 	 
 \end{document}
