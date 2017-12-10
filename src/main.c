@@ -94,22 +94,21 @@ struct bench_args {
 void*
 cwork(void *args)
 {
-    const int default_vector_len = 64;
-
     struct thread_args_consumer *cargs = args;
     struct work_item *item;
     struct timespec ttoken;
-    uint64_t ret;
-    int64_t i, j;
-    double *tstamp;
+    double tstamp;
+    double total;
+    double rwrite_total, swrite_total;
     void *buf;
     char *ofile_name;
     int fd;
+    uint64_t ret;
+    int64_t i;
 
     for (i = 0; i < MAX_DATA_POINTS; i++) {
         cargs->data[i].total_time_consumed = 0;
         cargs->data[i].total_operations = 0;
-        cargs->data[i].vec = vector_create(default_vector_len);
     }
     lseek(cargs->fd, 0L, SEEK_SET);
 
@@ -135,32 +134,53 @@ cwork(void *args)
     while (global_cstate == CONSUMER_STATE_IN_LOOP) {
         item = cirq_get(cargs->workload);
 
-        // printf("%lu. O: %lu | L: %lu | T: %d\n",
-        // item->sequence, item->offset, item->length, item->task);
+        printf("%lu. O: %lu | L: %lu | T: %d\n",
+        item->sequence, item->offset, item->length, item->task);
 
         buf = malloc(item->length);
         assert(buf != NULL);
 
-        INIT_TIME(&ttoken);
         if (item->task == IO_RREAD || item->task == IO_SREAD) {
+            INIT_TIME(&ttoken);
             ret = pread(cargs->fd, buf, item->length, item->offset);
+            tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
         } else {
             memset(buf, 49, item->length);
+            INIT_TIME(&ttoken);
             ret = pwrite(cargs->fd, buf, item->length, item->offset);
+            tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+
+            if (item->task == IO_RWRITE) {
+                rwrite_total += item->length;
+            } else {
+                swrite_total += item->length;
+            }
         }
         assert(ret == item->length);
-        tstamp = malloc(sizeof *tstamp);
-        *tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
 
-        cargs->data[item->task].total_time_consumed += *tstamp;
+        cargs->data[item->task].total_time_consumed += tstamp;
         cargs->data[item->task].total_operations += 1;
-        vector_append(cargs->data[item->task].vec, tstamp);
-        //printf("Time Taken: %.8lf seconds\n\n", *tstamp);
+        printf("Time Taken: %.8lf seconds\n\n", tstamp);
 
         free(item);
         free(buf);
     }
     global_cstate = CONSUMER_STATE_EXITED_LOOP;
+
+    /*
+     * We need to ensure that all the data written is flushed
+     * to the drive otherwise the benchmark is not accurate.
+     * Calling fsync after each write is dumb however. We call
+     * fsync after the loop and divide the time it takes.
+     */
+    INIT_TIME(&ttoken);
+    fsync(cargs->fd);
+    tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+    printf("Sync Time: %.8lf seconds\n", tstamp);
+
+    total = rwrite_total + swrite_total;
+    cargs->data[IO_RWRITE].total_time_consumed += ((rwrite_total/total) * tstamp);
+    cargs->data[IO_SWRITE].total_time_consumed += ((swrite_total/total) * tstamp);
 
     /*
      * Append a ".bin" to the end of given file name. This
@@ -185,6 +205,7 @@ cwork(void *args)
     }
     fd = open(ofile_name, O_WRONLY | O_CREAT | O_TRUNC, 0666);
     assert(fd != -1);
+    free(ofile_name);
 
     for (i = 0; i < MAX_DATA_POINTS; i++) {
         if (cargs->data[i].total_operations > 0) {
@@ -192,28 +213,22 @@ cwork(void *args)
         } else {
             cargs->data[i].avg_time_consumed = 0;
         }
-        printf("%ld. Average Latency: %.8lf seconds\n", i, cargs->data[i].avg_time_consumed);
+        printf("%ld. Total Operations: %lu\n", i, cargs->data[i].total_operations);
+        printf("%ld. Average Latency : %.8lf seconds\n", i, cargs->data[i].avg_time_consumed);
+        printf("%ld. Total Time Taken: %.8lf seconds\n\n", i, cargs->data[i].total_time_consumed);
 
         /*
          * The format of the output binary file is simple.
          *  --> The total number of operations == X (8 bytes).
          *  --> The average time consumed by 1 operation (8 bytes).
-         *  --> The list of times (X * 8 bytes).
-         *  --> Loop for next task.
+         *  --> The total time consumed (8 bytes).
          */ 
 
-        write(fd, &cargs->data[i].total_operations, sizeof(double));
+        write(fd, &cargs->data[i].total_operations, sizeof(uint64_t));
         write(fd, &cargs->data[i].avg_time_consumed, sizeof(double));
-        for (j = 0; j < vector_size(cargs->data[i].vec); j++) {
-            tstamp = vector_get(cargs->data[i].vec, j);
-            write(fd, tstamp, sizeof *tstamp);
-            free(tstamp);
-        }   
-        vector_free(cargs->data[i].vec);
+        write(fd, &cargs->data[i].total_time_consumed, sizeof(double));
     }
-    printf("\n");
 
-    free(ofile_name);
     close(cargs->fd);
     close(fd);
     return NULL;
@@ -262,10 +277,10 @@ twork(void *args)
 
     for (i = 0; i < targs->timer; i++) {
         sleep(1);
-        printf("%ld...", i+1);
-        fflush(stdout);
+        //printf("%ld...", i+1);
+        //fflush(stdout);
     }
-    printf("\n");
+    //printf("\n");
 
     /*
      ************************************************************
@@ -394,7 +409,7 @@ main(int argc, char *argv[])
      * Also acquire the size of the disk drive.
      */
 
-    fd = open(args_data.path, O_RDWR | O_SYNC);
+    fd = open(args_data.path, O_RDWR);
     assert(fd != -1);
 
     // Timer.

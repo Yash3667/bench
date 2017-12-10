@@ -99,107 +99,87 @@ except Exception:
     with open("default_output.bin", "rb") as f:
         content = f.read()
 
-rread_sz = long(rread_sz)
-rwrite_sz = long(rwrite_sz)
-sread_sz = long(sread_sz)
-swrite_sz = long(swrite_sz)
+rread_sz = float(rread_sz)
+rwrite_sz = float(rwrite_sz)
+sread_sz = float(sread_sz)
+swrite_sz = float(swrite_sz)
 offset = 0
 
 rread_op = 0
 rread_avg = 0.0
-rread_list = []
 rread_thru = 0.0
-rread_std = 0.0
+rread_total = 0.0
 
 rwrite_op = 0
 rwrite_avg = 0.0
-rwrite_list = []
 rwrite_thru = 0.0
-rwrite_std = 0.0
+rwrite_total = 0.0
 
 sread_op = 0
 sread_avg = 0.0
-sread_list = []
 sread_thru = 0.0
-sread_std = 0.0
+sread_total = 0.0
 
 swrite_op = 0
 swrite_avg = 0.0
-swrite_list = []
 swrite_thru = 0.0
-swrite_std = 0.0
+swrite_total = 0.0
 
 # Random Reads
 rread_op = struct.unpack("L", content[offset:offset+8])[0]
 offset += 8
 rread_avg = struct.unpack("d", content[offset:offset+8])[0]
 offset += 8
+rread_total = struct.unpack("d", content[offset:offset+8])[0]
+offset += 8
 
 try:
-    rread_thru = float(rread_sz) * (1 / rread_avg) / float(1024*1024)
+    rread_thru = (rread_sz / rread_avg) / 1048576.0
 except Exception:
     rread_thru = 0.0
-
-for i in range(rread_op):
-    rread_list.append(struct.unpack("d", content[offset:offset+8])[0])
-    offset += 8
-rread_std = numpy.std(numpy.array(rread_list), ddof=1)
-print rread_op, rread_avg, rread_thru, rread_std
-#print
+print rread_op, rread_avg, rread_total, rread_thru
 
 # Random Writes
 rwrite_op = struct.unpack("L", content[offset:offset+8])[0]
 offset += 8
 rwrite_avg = struct.unpack("d", content[offset:offset+8])[0]
 offset += 8
+rwrite_total = struct.unpack("d", content[offset:offset+8])[0]
+offset += 8
 
 try:
-    rwrite_thru = float(rwrite_sz) * (1 / rwrite_avg) / float(1024*1024)
+    rwrite_thru = (rwrite_sz / rwrite_avg) / 1048576.0
 except Exception:
     rwrite_thru = 0.0
-
-for i in range(rwrite_op):
-    rwrite_list.append(struct.unpack("d", content[offset:offset+8])[0])
-    offset += 8
-rwrite_std = numpy.std(numpy.array(rwrite_list), ddof=1)
-print rwrite_op, rwrite_avg, rwrite_thru, rwrite_std
-#print
+print rwrite_op, rwrite_avg, rwrite_total, rwrite_thru
 
 # Sequential Reads
 sread_op = struct.unpack("L", content[offset:offset+8])[0]
 offset += 8
 sread_avg = struct.unpack("d", content[offset:offset+8])[0]
 offset += 8
+sread_total = struct.unpack("d", content[offset:offset+8])[0]
+offset += 8
 
 try:
-    sread_thru = float(sread_sz) * (1 / sread_avg) / float(1024*1024)
+    sread_thru = (sread_sz / sread_avg) / 1048576.0
 except Exception:
     sread_thru = 0.0
-
-for i in range(sread_op):
-    sread_list.append(struct.unpack("d", content[offset:offset+8])[0])
-    offset += 8
-sread_std = numpy.std(numpy.array(sread_list), ddof=1)
-print sread_op, sread_avg, sread_thru, sread_std
-#print
+print sread_op, sread_avg, sread_total, sread_thru
 
 # Sequential Writes
 swrite_op = struct.unpack("L", content[offset:offset+8])[0]
 offset += 8
 swrite_avg = struct.unpack("d", content[offset:offset+8])[0]
 offset += 8
+swrite_total = struct.unpack("d", content[offset:offset+8])[0]
+offset += 8
 
 try:
-    swrite_thru = float(swrite_sz) * (1 / swrite_avg) / float(1024*1024)
+    swrite_thru = (swrite_sz / swrite_avg) / 1048576.0
 except Exception:
     swrite_thru = 0.0
-
-for i in range(swrite_op):
-    swrite_list.append(struct.unpack("d", content[offset:offset+8])[0])
-    offset += 8
-swrite_std = numpy.std(numpy.array(swrite_list), ddof=1)
-print swrite_op, swrite_avg, swrite_thru, swrite_std
-#print
+print swrite_op, swrite_avg, swrite_total, swrite_thru
 
 latencies = [rread_avg, rwrite_avg, sread_avg, swrite_avg]
 thru = [rread_thru, rwrite_thru, sread_thru, swrite_thru]
@@ -238,7 +218,7 @@ layout0 = go.Layout(
         showgrid=True
     ),
     barmode='group',
-    title="Average Latencies (seconds)",
+    title="Average Latencies (seconds) - " + args[2],
 )
 
 fig = go.Figure(data=data0, layout=layout0)
@@ -253,7 +233,7 @@ layout1 = go.Layout(
         showgrid=True
     ),
     barmode='group',
-    title="Average Throughput (MB/s)",
+    title="Average Throughput (MB/s) - " + args[2],
 )
 
 fig = go.Figure(data=data1, layout=layout1)

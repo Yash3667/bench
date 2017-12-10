@@ -62,7 +62,6 @@ struct work_item {
 
 // Statistical Collection
 struct data_collection {
-    vector *vec;
     uint64_t total_operations;
     double total_time_consumed;
     double avg_time_consumed;
