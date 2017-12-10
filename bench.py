@@ -15,6 +15,11 @@ import numpy
 import plotly.plotly as py
 import plotly.graph_objs as go
 
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
+
+
 name = "./build/bench"
 path = ""
 rread_prob = 0
@@ -188,55 +193,18 @@ for i in range(len(latencies)):
     latencies[i] = round(latencies[i], 5)
     thru[i] = round(thru[i], 5)
 
-sys.exit(1)
+x = ['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write']
+x_pos = numpy.arange(len(x))
 
-trace0 = go.Bar(
-    x=['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write'],
-    y=latencies,
-    marker=dict(
-        color='rgb(49,130,189)'
-    ),
-    text=latencies,
-    textposition='auto',
-    opacity=0.85,
-)
-trace1 = go.Bar(
-    x=['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write'],
-    y=thru,
-    marker=dict(
-        color='rgb(204,204,204)',
-    ),
-    text=thru,
-    textposition='auto',
-    opacity=0.85,
-)
+plt.bar(x_pos, thru, align='center', alpha=0.5)
+plt.xticks(x_pos, x)
+plt.ylabel("MB/s")
+plt.title("Average Throughput - " + args[2])
+plt.savefig(args[2] + "-thru")
+plt.clf()
 
-data0 = [trace0]
-layout0 = go.Layout(
-    xaxis=dict(tickangle=-45),
-    yaxis=dict(
-        type='log',
-        autotick=False,
-        showgrid=True
-    ),
-    barmode='group',
-    title="Average Latencies (seconds) - " + args[2],
-)
-
-fig = go.Figure(data=data0, layout=layout0)
-py.plot(fig, filename=args[2] + ".lat")
-
-data1 = [trace1]
-layout1 = go.Layout(
-    xaxis=dict(tickangle=-45),
-    yaxis=dict(
-        type='log',
-        autotick=False,
-        showgrid=True
-    ),
-    barmode='group',
-    title="Average Throughput (MB/s) - " + args[2],
-)
-
-fig = go.Figure(data=data1, layout=layout1)
-py.plot(fig, filename=args[2] + ".thru")
+plt.bar(x_pos, latencies, align='center', alpha=0.5, color='red')
+plt.xticks(x_pos, x)
+plt.ylabel("seconds")
+plt.title("Average Latency - " + args[2])
+plt.savefig(args[2] + "-lat")

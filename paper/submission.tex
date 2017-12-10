@@ -1,4 +1,7 @@
 \documentclass[10pt, author, twocolumn]{article}
+
+\usepackage{subcaption}
+\usepackage{pdfpages}
 \usepackage[margin=1in]{geometry}
 
 % Author Information
@@ -139,11 +142,80 @@ By enforcing this order, the producer thread stays active for as long as the con
 \subsection{Graphs}
 The consumer collects a lot of data during its process phase. All of this data is outputted to a file during the output phase. The python phase which started the benchmark parses this file and uses the \texttt{plotly} module to build graphs from it.
 
-We decided to use the \texttt{plotly} module over the better known \texttt{matplotlib} module as, in out opinion, graphs from the \texttt{plotly} are more visually appealing.
+We decided to use the \texttt{matplotlib} module over the more commercial \texttt{plotly} module as, in out opinion, graphs from the \texttt{matplotlib} are more visually appealing.
 
 \section{Evaluations}
+In this section, we present our evaluations taken using \textit{bench}. We evaluated a standard industry benchmark which evaluates the performance of storage media for a web server. The workload for this is as such: random read (65\%, 4 KB), random write (10\%, 4 KB), sequential read (20\%, 64 KB) and sequential write (5\%, 64 KB); Arrival time: 0.1 seconds. This was evaluated on a Western Digital 1TB HDD and a LITEONIT 80GB mSATA SSD.
+
+We also evaluated standard benchmarks to corrobate the performance characteristics of chosen media. Hence, we chose a sequential based workload for the HDD and sequential + random read based workload for the SSD. 
+
+\begin{enumerate}
+    \item Sequential: random read (0\%, 64 KB), random write (0\%, 64 KB), sequential read (70\%, 64 KB) and sequential write (30\%, 64 KB); Arrival time: 2 seconds. \textbf{This is a close modeling of a virtual memory paging workload}.
+    \item Sequential + Random Reads: random read (20\%, 16 KB), random write (10\%, 16 KB), sequential read (30\%, 128 KB) and sequential write (40\%, 128 KB); Arrival time: 2 seconds. \textbf{This is a close modeling of a log structured FS}.
+\end{enumerate}
+
+\subsection{Web Server}
+The evaluations for the web server benchmark highlight that while the SSD performs better than an HDD (Figures 1, 2, 4 \& 5), they both have similar characteristics for the workload. This means that if we had an HDD which has similar performance ratings as the SSD, then the HDD would perform just as nice as the SSD for this workload. 
+
+\subsection{Paging and LFS}
+From the paging graphs (Figures 3 \& 6), an HDD achieves high throughput and low latency for both I/O tasks. On the other side, an SSD does amazingly well for an LFS workload, with sequential read throughput crossing 300 MB/s (Figures 7 \& 8). 
+
+These sets of graphs confirm the performance characteristics of these storage media and should vouch for \textit{bench} being a viable benchmarking application.
 
 \section{Conclusion}
+It is possible to build a benchmarking application capable of benchmarking most if not all workloads. The corroboration of the result with the expectation means that \textit{bench} is a viable option for performing becnhmarks on workloads. 
+
+Some future work includes expanding the probability distribution to include certain predicates which may make it possible to address some of the highlighted issues. We are also looking into predicates for arrival times, which should rectify the inaccuracies of an overall average arrival time.
+
+\newpage
+\begin{figure}[t!]
+    \includegraphics[scale=0.5]{../graphs/web_ssd-lat.png}
+    \caption{Web Server Latency (SSD)}
+    \label{fig:ssd_web_lat}
+\end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale=0.5]{../graphs/web_ssd-thru.png}
+    \caption{Web Server Throughput (SSD)}
+    \label{fig:ssd_web_thru}
+\end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale=0.5]{../graphs/page_hdd-lat.png}
+    \caption{Page Workload Latency (HDD)}
+    \label{fig:hdd_page_lat}
+\end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale=0.5]{../graphs/web_hdd-lat.png}
+    \caption{Web Server Latency (HDD)}
+    \label{fig:hhd_web_lat}
+\end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale=0.5]{../graphs/web_hdd-thru.png}
+    \caption{Web Server Throughput (HDD)}
+    \label{fig:hdd_web_thru}
+\end{figure}
+
+\vspace{5cm}
+\begin{figure}[h!]
+    \includegraphics[scale=0.5]{../graphs/page_hdd-thru.png}
+    \caption{Page Workload Throughput (HDD)}
+    \label{fig:hdd_page_thru}
+\end{figure}
+
+\begin{figure}[t!]
+    \includegraphics[scale=0.5]{../graphs/lfs_ssd-lat.png}
+    \caption{LFS Latency (SSD)}
+    \label{fig:ssd_lfs_lat}
+\end{figure}
+
+\begin{figure}[t!]
+    \includegraphics[scale=0.5]{../graphs/lfs_ssd-thru.png}
+    \caption{LFS Throughput (SSD)}
+    \label{fig:ssd_lfs_thru}
+\end{figure}
 
 \bibliographystyle{plain}
 \bibliography{cites}
