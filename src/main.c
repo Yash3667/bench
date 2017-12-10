@@ -110,7 +110,7 @@ cwork(void *args)
         cargs->data[i].total_time_consumed = 0;
         cargs->data[i].total_operations = 0;
     }
-    lseek(cargs->fd, 0L, SEEK_SET);
+    lseek(cargs->fd, 0, SEEK_SET);
 
     /*
      **********************************************************
@@ -130,6 +130,7 @@ cwork(void *args)
      **********************************************************
      */
 
+    total = rwrite_total = swrite_total = 0;
     global_cstate = CONSUMER_STATE_IN_LOOP;
     while (global_cstate == CONSUMER_STATE_IN_LOOP) {
         item = cirq_get(cargs->workload);
@@ -143,12 +144,12 @@ cwork(void *args)
         if (item->task == IO_RREAD || item->task == IO_SREAD) {
             INIT_TIME(&ttoken);
             ret = pread(cargs->fd, buf, item->length, item->offset);
-            tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+            tstamp = GET_TIME(ttoken);
         } else {
             memset(buf, 49, item->length);
             INIT_TIME(&ttoken);
             ret = pwrite(cargs->fd, buf, item->length, item->offset);
-            tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+            tstamp = GET_TIME(ttoken);
 
             if (item->task == IO_RWRITE) {
                 rwrite_total += item->length;
@@ -175,12 +176,12 @@ cwork(void *args)
      */
     INIT_TIME(&ttoken);
     fsync(cargs->fd);
-    tstamp = (double)GET_TIME(ttoken) / 1000000000UL;
+    tstamp = GET_TIME(ttoken);
     printf("Sync Time: %.8lf seconds\n", tstamp);
 
     total = rwrite_total + swrite_total;
-    cargs->data[IO_RWRITE].total_time_consumed += ((rwrite_total/total) * tstamp);
-    cargs->data[IO_SWRITE].total_time_consumed += ((swrite_total/total) * tstamp);
+    cargs->data[IO_RWRITE].total_time_consumed += (total)? ((rwrite_total/total) * tstamp): 0;
+    cargs->data[IO_SWRITE].total_time_consumed += (total)? ((swrite_total/total) * tstamp): 0;
 
     /*
      * Append a ".bin" to the end of given file name. This

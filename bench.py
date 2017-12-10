@@ -78,7 +78,7 @@ print "  Sequential Write Size........." + swrite_sz + " bytes"
 print "  Timer........................." + timer + " seconds"
 print "  Interval......................" + interval + " seconds"
 
-command = name + " "
+command = "nice -19 " + name + " "
 command += rread_prob + " " + rwrite_prob + " " + sread_prob + " " + swrite_prob + " "
 command += rread_sz + " " + rwrite_sz + " " + sread_sz + " " + swrite_sz + " "
 command += timer + " " + interval + " " + path
@@ -187,6 +187,8 @@ thru = [rread_thru, rwrite_thru, sread_thru, swrite_thru]
 for i in range(len(latencies)):
     latencies[i] = round(latencies[i], 5)
     thru[i] = round(thru[i], 5)
+
+sys.exit(1)
 
 trace0 = go.Bar(
     x=['Random Read', 'Random Write', 'Sequential Read', 'Sequential Write'],

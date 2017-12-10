@@ -1,7 +1,15 @@
 # Fdb version 3
-["pdflatex"] 1512896496 "/home/wolf/Desktop/bench/paper/submission.tex" "submission.pdf" "submission" 1512896497
+["bibtex submission"] 1512905602 "submission.aux" "submission.bbl" "submission" 1512905602
+  "/usr/share/texlive/texmf-dist/bibtex/bst/base/plain.bst" 1480098433 20613 bd3fbfa9f64872b81ac57a0dd2ed855f ""
+  "cites.bib" 1512905596 3355 1b418128110e7aedbbe44289e3be1221 ""
+  "submission.aux" 1512905602 1833 e4a84d4de141ecbd59d8cd613f902b93 ""
+  "submission.bcf" 0 -1 0 ""
+  (generated)
+  "submission.blg"
+  "submission.bbl"
+["pdflatex"] 1512905602 "/home/wolf/Desktop/bench/paper/submission.tex" "submission.pdf" "submission" 1512905602
   "/etc/texmf/web2c/texmf.cnf" 1512879747 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/home/wolf/Desktop/bench/paper/submission.tex" 1512896497 26634 2ae2740272205be39dcf69d45b914eca ""
+  "/home/wolf/Desktop/bench/paper/submission.tex" 1512905602 26943 ad83d640afcf43d74fc25c25975dc4a0 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1480098670 3287 e6b82fe08f5336d4d5ebc73fb1152e87 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx10.tfm" 1480098701 1328 c834bbb027764024c09d3d2bf908b5f0 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/cm/cmbx12.tfm" 1480098701 1324 c910af8c371558dc20f2d7822f66fe64 ""
@@ -37,9 +45,10 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1503024366 32036 8f10cb8f6ef259fb5791f09c065d3d13 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1512880513 2377213 8bc19c9e6d8db8e1c35694d1be199981 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1512880539 4131328 b033fe3f3e4cbc8b36a673a3a507fda9 ""
-  "submission.aux" 1512896497 936 10c56c445a2dc2a6a6a553173a15c09d ""
-  "submission.tex" 1512896497 26634 2ae2740272205be39dcf69d45b914eca ""
+  "submission.aux" 1512905602 1833 e4a84d4de141ecbd59d8cd613f902b93 ""
+  "submission.bbl" 1512905602 2477 8bdefc9b428251e13b9acd43a1339829 "bibtex submission"
+  "submission.tex" 1512905602 26943 ad83d640afcf43d74fc25c25975dc4a0 ""
   (generated)
-  "submission.pdf"
-  "submission.log"
   "submission.aux"
+  "submission.log"
+  "submission.pdf"
